@@ -2,9 +2,9 @@
 Brainfuck interpreters in different languages
 
 Finished:
+- Rust
 
 WIP:
-- Rust
 
 To-Do:
 - Java
