@@ -19,12 +19,11 @@ fn run(path: String) {
     println!("Path: {}", path);
     let program = fs::read_to_string(path).unwrap();
     let program = minify(program);
-    println!("Minified program: {}", program);
 
     let start = SystemTime::now();
-    let out = interpret(program.chars().collect(), false);
+    let out = interpret(program.chars().collect());
 
-    println!("Finished in {}ms: {}", start.elapsed().unwrap().as_millis(), out);
+    println!("{}\nFinished execution in {}ms", out, start.elapsed().unwrap().as_millis());
 }
 
 fn minify(program: String) -> String {
@@ -34,7 +33,7 @@ fn minify(program: String) -> String {
 
 const MEM_SIZE: usize = 0xFFFF;
 
-fn interpret(pgm: Vec<char>, number_debug: bool) -> String {
+fn interpret(pgm: Vec<char>) -> String {
     let mut out = String::new();
     let mut pointer: usize = 0;
     let mut mem: [u8; MEM_SIZE] = [0; MEM_SIZE];
@@ -48,21 +47,14 @@ fn interpret(pgm: Vec<char>, number_debug: bool) -> String {
             '<' => if pointer == 0 { pointer = MEM_SIZE - 1 } else { pointer -= 1 },
             '+' => mem[pointer] = mem[pointer].wrapping_add(1),
             '-' => mem[pointer] = mem[pointer].wrapping_sub(1),
-            '.' => {
-                if number_debug {
-                    out.push_str(&(mem[pointer].to_string() + " "))
-                } else {
-                    out.push(mem[pointer] as u8 as char)
-                }
-            }
+            '.' => out.push(mem[pointer] as u8 as char),
             ',' => {
                 stdin().read(&mut in_buffer).unwrap();
                 mem[pointer] = in_buffer[0] as u8;
             }
             '[' => {
-                //jump to corresponding ] so that it will get to the command after the ]
+                //jump to corresponding ]
                 if mem[pointer] == 0 {
-                    println!("jumping forward at location {}", pc + 1);
                     let mut level = 0;
                     while pgm[pc] != ']' || level > -1 {
                         pc += 1;
@@ -76,14 +68,10 @@ fn interpret(pgm: Vec<char>, number_debug: bool) -> String {
                             _ => (),
                         }
                     }
-                    println!("found matching ] at location {}", pc + 1);
-                    assert_eq!(pgm[pc], ']')
                 }
             }
             ']' => {
                 if mem[pointer] != 0 {
-                    println!("jumping back at location {}", pc + 1);
-
                     //jump to corresponding [
                     let mut level = 0;
                     while pgm[pc] != '[' || level > -1 {
@@ -94,9 +82,6 @@ fn interpret(pgm: Vec<char>, number_debug: bool) -> String {
                             _ => (),
                         }
                     }
-                    println!("found matching [ at location {}", pc + 1);
-
-                    assert_eq!(pgm[pc], '[')
                 }
             }
             _ => (),
