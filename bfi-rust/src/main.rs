@@ -166,7 +166,7 @@ mod o1 {
         out
     }
 
-    fn execute(statement: &Statement, mem: &mut Memory, pointer: &mut usize, mut out: &mut String) {
+    fn execute(statement: &Statement, mem: &mut Memory, pointer: &mut usize, out: &mut String) {
         match statement {
             Statement::R => if *pointer == MEM_SIZE - 1 { *pointer = 0 } else { *pointer += 1 },
             Statement::L => if *pointer == 0 { *pointer = MEM_SIZE - 1 } else { *pointer -= 1 },
