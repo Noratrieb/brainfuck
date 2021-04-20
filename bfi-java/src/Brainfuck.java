@@ -24,7 +24,6 @@ public class Brainfuck {
         int pc = 0;
 
         while (pc < pgm.size()) {
-            if (pointer > 1000) break;
             switch (pgm.get(pc)) {
                 case '>' -> {
                     if (pointer == MEM_SIZE - 1) {
@@ -103,8 +102,10 @@ public class Brainfuck {
 
         String program = Files.readString(Paths.get(args[0]));
         List<Character> minified = brainfuck.minify(program);
+        long time1 = System.currentTimeMillis();
         String result = brainfuck.interpret(minified);
-
+        long time = System.currentTimeMillis() - time1;
         System.out.println(result);
+        System.out.println("Finished execution in " + time + "ms");
     }
 }
