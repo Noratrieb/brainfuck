@@ -5,9 +5,9 @@ Finished:
 - Rust
 
 WIP:
+- Java
 
 To-Do:
-- Java
 - Haskell
 - TypeScript
 - (JavaScript)
