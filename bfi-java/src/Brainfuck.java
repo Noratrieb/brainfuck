@@ -94,6 +94,11 @@ public class Brainfuck {
     public static void main(String[] args) throws IOException {
         Brainfuck brainfuck = new Brainfuck();
 
+        if (args.length < 1) {
+            System.out.println("Please specify a path");
+            return;
+        }
+
         String program = Files.readString(Paths.get(args[0]));
         List<Character> minified = brainfuck.minify(program);
 
