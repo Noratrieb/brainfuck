@@ -23,8 +23,8 @@ public class Brainfuck {
         short[] memory = new short[MEM_SIZE];
         int pc = 0;
 
-
         while (pc < pgm.size()) {
+            if (pointer > 1000) break;
             switch (pgm.get(pc)) {
                 case '>' -> {
                     if (pointer == MEM_SIZE - 1) {
@@ -37,12 +37,14 @@ public class Brainfuck {
                     if (pointer == 0) {
                         pointer = MEM_SIZE - 1;
                     } else {
-                        pointer++;
+                        pointer--;
                     }
                 }
                 case '+' -> increment(memory, pointer);
                 case '-' -> decrement(memory, pointer);
-                case '.' -> out.append((char) memory[pointer]);
+                case '.' -> {
+                    out.append((char) memory[pointer]);
+                }
                 case ',' -> {
                 } //todo implement i guess
                 case '[' -> {
@@ -56,14 +58,14 @@ public class Brainfuck {
                         }
                     }
                 }
-                case ']' -> {
+                case ']' -> { //error lies here
                     if (memory[pointer] != 0) {
                         int level = 0;
-                        while (pgm.get(pc) != '[' || level >= -1) {
+                        while (pgm.get(pc) != '[' || level > -1) {
                             pc--;
                             char instruction = pgm.get(pc);
                             if (instruction == '[') level--;
-                            if (instruction == ']') level++;
+                            else if (instruction == ']') level++;
                         }
                     }
                 }
@@ -101,7 +103,6 @@ public class Brainfuck {
 
         String program = Files.readString(Paths.get(args[0]));
         List<Character> minified = brainfuck.minify(program);
-
         String result = brainfuck.interpret(minified);
 
         System.out.println(result);

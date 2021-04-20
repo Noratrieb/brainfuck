@@ -19,6 +19,7 @@ fn run(path: String) {
     println!("Path: {}", path);
     let program = fs::read_to_string(path).unwrap();
     let program = minify(program);
+    println!("{}", program);
 
     let start = SystemTime::now();
     let out = interpret(program.chars().collect());
