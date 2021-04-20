@@ -3,9 +3,10 @@ Brainfuck interpreters in different languages
 
 Finished:
 - Rust
+- Java
 
 WIP:
-- Java
+- Rust o1
 
 To-Do:
 - Haskell
