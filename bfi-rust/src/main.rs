@@ -100,6 +100,8 @@ fn interpret(pgm: Vec<char>) -> String {
 /// most importantly: loop jumps should be immediate
 ///
 mod o1 {
+    use std::io::{stdin, Read};
+
     const MEM_SIZE: usize = 0xFFFF;
 
     type Memory = [u8; MEM_SIZE];
@@ -117,6 +119,12 @@ mod o1 {
         Loop(Vec<Statement>),
     }
 
+    fn run(pgm: String) -> String{
+        let pgm = minify(pgm);
+        let pgm = parse(pgm.chars().collect());
+        let out = interpret(pgm);
+        out
+    }
 
     fn minify(code: String) -> String {
         let allowed: Vec<char> = vec!['>', '<', '+', '-', '.', ',', '[', ']'];
@@ -138,7 +146,7 @@ mod o1 {
                 ']' => {
                     let statement = Statement::Loop(loop_stack.pop().unwrap());
                     loop_stack.last_mut().unwrap().push(statement);
-                },
+                }
                 _ => ()
             }
         }
@@ -146,14 +154,44 @@ mod o1 {
         return loop_stack.pop().unwrap();
     }
 
-    fn interpret_o1(pgm: Vec<Statement>) {
+    fn interpret(pgm: Vec<Statement>) -> String {
+        let mut out = String::new();
+        let mut pointer: usize = 0;
+        let mut mem: [u8; MEM_SIZE] = [0; MEM_SIZE];
 
+        for s in pgm {
+            execute(&s, &mut mem, &mut pointer, &mut out)
+        }
+
+        out
+    }
+
+    fn execute(statement: &Statement, mem: &mut Memory, pointer: &mut usize, mut out: &mut String) {
+        match statement {
+            Statement::R => if *pointer == MEM_SIZE - 1 { *pointer = 0 } else { *pointer += 1 },
+            Statement::L => if *pointer == 0 { *pointer = MEM_SIZE - 1 } else { *pointer -= 1 },
+            Statement::Inc => mem[*pointer] = mem[*pointer].wrapping_add(1),
+            Statement::Dec => mem[*pointer] = mem[*pointer].wrapping_sub(1),
+            Statement::Out => out.push(mem[*pointer] as u8 as char),
+            Statement::In => {
+                let mut in_buffer = [0, 1];
+                stdin().read(&mut in_buffer).unwrap();
+                mem[*pointer] = in_buffer[0] as u8;
+            }
+            Statement::Loop(vec) => {
+                while mem[*pointer] != 0 {
+                    for s in vec {
+                        execute(&s, mem, pointer, out);
+                    }
+                }
+            }
+        }
     }
 
 
     #[cfg(test)]
     mod test {
-        use crate::o1::{parse, Statement::{self, Inc, Dec, R, L, In, Out, Loop}};
+        use crate::o1::{parse, Statement::{self, Inc, Dec, R, L, In, Out, Loop}, execute};
 
         #[test]
         fn parse_no_loop() {
@@ -180,6 +218,23 @@ mod o1 {
             let result = parse(program.chars().collect());
 
             assert_eq!(statements, result);
+        }
+
+
+        #[test]
+        fn execute_simple() {
+            let mut pointer: usize = 0;
+            let mut mem: [u8; 65535] = [0; 65535];
+            let mut out = String::new();
+
+            execute(&Statement::R, &mut mem, &mut pointer, &mut out);
+            assert_eq!(pointer, 1);
+            execute(&Statement::L, &mut mem, &mut pointer, &mut out);
+            assert_eq!(pointer, 0);
+            execute(&Statement::Inc, &mut mem, &mut pointer, &mut out);
+            assert_eq!(mem[pointer], 1);
+            execute(&Statement::Dec, &mut mem, &mut pointer, &mut out);
+            assert_eq!(mem[pointer], 0);
         }
     }
 }
