@@ -3,12 +3,13 @@ Brainfuck interpreters in different languages
 
 Finished:
 - Rust
+- Rust o1
 - Java
 
 WIP:
-- Rust o1
 
 To-Do:
+- Rust o2
 - Haskell
 - TypeScript
 - (JavaScript)
