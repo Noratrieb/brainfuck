@@ -22,6 +22,11 @@ fn run(path: String) {
     println!("{}", program);
 
     let start = SystemTime::now();
+
+    //new
+    //let out = o1::run(&*program);
+
+    //old
     let out = interpret(program.chars().collect());
 
     println!("{}\nFinished execution in {}ms", out, start.elapsed().unwrap().as_millis());
@@ -96,7 +101,7 @@ fn interpret(pgm: Vec<char>) -> String {
 ///
 /// # optimization time
 ///
-/// first parse the bf so that it can be exectued faster
+/// first parse the bf so that it can be executed faster
 /// most importantly: loop jumps should be immediate
 ///
 mod o1 {
@@ -105,6 +110,14 @@ mod o1 {
     const MEM_SIZE: usize = 0xFFFF;
 
     type Memory = [u8; MEM_SIZE];
+
+
+    pub fn run(pgm: &str) -> String {
+        let pgm = minify(pgm);
+        let pgm = parse(pgm.chars().collect());
+        let out = interpret(&pgm);
+        out
+    }
 
     ///
     /// A single Statement, can be an instruction or a nestable loop
@@ -119,14 +132,7 @@ mod o1 {
         Loop(Vec<Statement>),
     }
 
-    fn run(pgm: String) -> String{
-        let pgm = minify(pgm);
-        let pgm = parse(pgm.chars().collect());
-        let out = interpret(pgm);
-        out
-    }
-
-    fn minify(code: String) -> String {
+    fn minify(code: &str) -> String {
         let allowed: Vec<char> = vec!['>', '<', '+', '-', '.', ',', '[', ']'];
         code.chars().filter(|c| allowed.contains(c)).collect()
     }
@@ -154,13 +160,13 @@ mod o1 {
         return loop_stack.pop().unwrap();
     }
 
-    fn interpret(pgm: Vec<Statement>) -> String {
+    fn interpret(pgm: &Vec<Statement>) -> String {
         let mut out = String::new();
         let mut pointer: usize = 0;
         let mut mem: [u8; MEM_SIZE] = [0; MEM_SIZE];
 
         for s in pgm {
-            execute(&s, &mut mem, &mut pointer, &mut out)
+            execute(s, &mut mem, &mut pointer, &mut out)
         }
 
         out
@@ -191,7 +197,7 @@ mod o1 {
 
     #[cfg(test)]
     mod test {
-        use crate::o1::{parse, Statement::{self, Inc, Dec, R, L, In, Out, Loop}, execute};
+        use crate::o1::{parse, Statement::{self, Inc, Dec, R, L, In, Out, Loop}, execute, run};
 
         #[test]
         fn parse_no_loop() {
@@ -235,6 +241,43 @@ mod o1 {
             assert_eq!(mem[pointer], 1);
             execute(&Statement::Dec, &mut mem, &mut pointer, &mut out);
             assert_eq!(mem[pointer], 0);
+        }
+
+        #[test]
+        fn execute_false_loop() {
+            let statement = Statement::Loop(vec![Statement::Inc, Statement::Inc, Statement::R]);
+            let mut pointer: usize = 0;
+            let mut mem: [u8; 65535] = [0; 65535];
+
+            execute(&statement, &mut mem, &mut pointer, &mut String::new());
+            assert_eq!(mem[0], 0);
+            assert_eq!(mem[1], 0);
+        }
+
+        #[test]
+        fn execute_loop() {
+            let statement = Statement::Loop(vec![Statement::Inc, Statement::Inc, Statement::R]);
+            let mut pointer: usize = 0;
+            let mut mem: [u8; 65535] = [0; 65535];
+            mem[0] = 1;
+
+            execute(&statement, &mut mem, &mut pointer, &mut String::new());
+            assert_eq!(mem[0], 3);
+            assert_eq!(mem[1], 0);
+        }
+
+        #[test]
+        fn run_loop() {
+            let program = "++++++++++[>++++++++++<-]>.";
+            let out = run(program);
+            assert_eq!(out, String::from("d"));
+        }
+
+        #[test]
+        fn hello_world() {
+            let program = "++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++.";
+            let out = run(program);
+            assert_eq!(out, String::from("Hello World!\n"));
         }
     }
 }
