@@ -18,13 +18,8 @@ fn main() {
 fn run(path: String) {
     println!("Path: {}", path);
     let program = fs::read_to_string(path).unwrap();
-    let program = minify(program);
-    println!("{}", program);
-
     let start = SystemTime::now();
-
     let out = o1::run(&*program);
-
     println!("{}\nFinished execution in {}ms", out, start.elapsed().unwrap().as_millis());
 }
 
@@ -35,7 +30,7 @@ fn run(path: String) {
 /// most importantly: loop jumps should be immediate
 ///
 mod o1 {
-    use std::io::{stdin, Read};
+    use std::io::{stdin, Read, stdout, Write};
 
     const MEM_SIZE: usize = 0xFFFF;
 
