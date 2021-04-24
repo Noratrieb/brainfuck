@@ -5,7 +5,7 @@
 use crate::interpreter::{MEM_SIZE, minify};
 use std::io::{stdin, Read};
 
-pub fn _run(program: &str) -> String{
+pub fn run(program: &str) -> String{
     let program = minify(program);
     let out = interpret(program.chars().collect());
     out

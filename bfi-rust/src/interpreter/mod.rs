@@ -47,8 +47,15 @@ fn parse(chars: Vec<char>) -> Vec<Statement> {
 
 #[cfg(test)]
 mod tests {
-    use crate::interpreter::parse;
+    use crate::interpreter::{parse, minify};
     use crate::interpreter::Statement::{Dec, In, Inc, L, Loop, Out, R};
+
+    #[test]
+    fn minify_test() {
+        let program = "sdahf+saga-46<sgbv>a[r]r.hr,e";
+        let expected = "+-<>[].,";
+        assert_eq!(String::from(expected), minify(program));
+    }
 
     #[test]
     fn parse_no_loop() {

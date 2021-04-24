@@ -9,7 +9,7 @@ use std::io::{Read, stdin};
 
 use crate::interpreter::{MEM_SIZE, Memory, minify, parse, Statement};
 
-pub fn _run(pgm: &str) -> String {
+pub fn run(pgm: &str) -> String {
     let pgm = minify(pgm);
     let pgm = parse(pgm.chars().collect());
     let out = interpret(&pgm);
