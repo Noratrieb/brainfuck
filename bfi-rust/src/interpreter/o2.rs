@@ -4,15 +4,11 @@
 
 use std::io::{Read, stdin};
 
-use crate::interpreter::{minify, parse, Statement};
+use crate::interpreter::{minify, parse, Statement, Memory, MEM_SIZE};
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::fmt;
 use std::ops::Deref;
-
-const MEM_SIZE: usize = 0xFFFF;
-
-type Memory = [u8; MEM_SIZE];
 
 #[derive(PartialOrd, PartialEq, Ord, Eq, Clone, Debug)]
 enum ExStatement {

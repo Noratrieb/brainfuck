@@ -1,5 +1,6 @@
 //!
 //! The very basic interpreter without any optimizations
+#![allow(dead_code)]
 
 use crate::interpreter::{MEM_SIZE, minify};
 use std::io::{stdin, Read};

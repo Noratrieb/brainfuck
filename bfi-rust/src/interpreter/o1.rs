@@ -3,12 +3,13 @@
 //!
 //!  first parse the bf so that it can be executed faster
 //!  most importantly: loop jumps should be immediate
-//!
+#![allow(dead_code)]
+
 use std::io::{Read, stdin};
 
 use crate::interpreter::{MEM_SIZE, Memory, minify, parse, Statement};
 
-pub fn run(pgm: &str) -> String {
+pub fn _run(pgm: &str) -> String {
     let pgm = minify(pgm);
     let pgm = parse(pgm.chars().collect());
     let out = interpret(&pgm);
