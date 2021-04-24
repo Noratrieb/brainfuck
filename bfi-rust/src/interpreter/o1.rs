@@ -1,10 +1,9 @@
-/*!
- # optimization time
-
- first parse the bf so that it can be executed faster
- most importantly: loop jumps should be immediate
-*/
-
+//!
+//!  # optimization time
+//!
+//!  first parse the bf so that it can be executed faster
+//!  most importantly: loop jumps should be immediate
+//!
 use std::io::{Read, stdin};
 
 use crate::interpreter::{MEM_SIZE, Memory, minify, parse, Statement};

@@ -1,7 +1,6 @@
-/*!
-# optimization time
-some better optimizations like set null, repeating and doing more stuff with simplifying stuff
- */
+//! # optimization time
+//!  some better optimizations like set null, repeating and doing more stuff with simplifying stuff
+//!
 
 use std::io::{Read, stdin};
 

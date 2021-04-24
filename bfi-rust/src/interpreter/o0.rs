@@ -1,7 +1,10 @@
+//!
+//! The very basic interpreter without any optimizations
+
 use crate::interpreter::{MEM_SIZE, minify};
 use std::io::{stdin, Read};
 
-pub fn run(program: &str) -> String{
+pub fn _run(program: &str) -> String{
     let program = minify(program);
     let out = interpret(program.chars().collect());
     out
