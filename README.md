@@ -7,9 +7,9 @@ Finished:
 - Java
 
 WIP:
+- Rust o2
 
 To-Do:
-- Rust o2
 - Haskell
 - TypeScript
 - (JavaScript)
