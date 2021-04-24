@@ -17,9 +17,10 @@ enum Statement {
     Loop(Vec<Statement>),
 }
 
+const ALLOWED_CHARS: [char; 8] = ['>', '<', '+', '-', '.', ',', '[', ']'];
+
 fn minify(code: &str) -> String {
-    let allowed: Vec<char> = vec!['>', '<', '+', '-', '.', ',', '[', ']'];
-    code.chars().filter(|c| allowed.contains(c)).collect()
+    code.chars().filter(|c| ALLOWED_CHARS.contains(c)).collect()
 }
 
 fn parse(chars: Vec<char>) -> Vec<Statement> {
