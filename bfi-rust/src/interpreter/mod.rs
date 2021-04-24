@@ -3,15 +3,15 @@ const MEM_SIZE: usize = 0xFFFF;
 type Memory = [u8; MEM_SIZE];
 
 
-#[derive(Debug, PartialOrd, PartialEq, Clone)]
-enum SimpleStatement {
+#[derive(Debug, PartialOrd, PartialEq, Ord, Eq, Clone)]
+enum Statement {
     Inc,
     Dec,
     R,
     L,
     Out,
     In,
-    Loop(Vec<SimpleStatement>),
+    Loop(Vec<Statement>),
 }
 
 fn minify(code: &str) -> String {
@@ -19,20 +19,20 @@ fn minify(code: &str) -> String {
     code.chars().filter(|c| allowed.contains(c)).collect()
 }
 
-fn parse(chars: Vec<char>) -> Vec<SimpleStatement> {
+fn parse(chars: Vec<char>) -> Vec<Statement> {
     let mut loop_stack = vec![vec![]];
 
     for c in chars {
         match c {
-            '+' => loop_stack.last_mut().unwrap().push(SimpleStatement::Inc),
-            '-' => loop_stack.last_mut().unwrap().push(SimpleStatement::Dec),
-            '>' => loop_stack.last_mut().unwrap().push(SimpleStatement::R),
-            '<' => loop_stack.last_mut().unwrap().push(SimpleStatement::L),
-            '.' => loop_stack.last_mut().unwrap().push(SimpleStatement::Out),
-            ',' => loop_stack.last_mut().unwrap().push(SimpleStatement::In),
+            '+' => loop_stack.last_mut().unwrap().push(Statement::Inc),
+            '-' => loop_stack.last_mut().unwrap().push(Statement::Dec),
+            '>' => loop_stack.last_mut().unwrap().push(Statement::R),
+            '<' => loop_stack.last_mut().unwrap().push(Statement::L),
+            '.' => loop_stack.last_mut().unwrap().push(Statement::Out),
+            ',' => loop_stack.last_mut().unwrap().push(Statement::In),
             '[' => loop_stack.push(vec![]),
             ']' => {
-                let statement = SimpleStatement::Loop(loop_stack.pop().unwrap());
+                let statement = Statement::Loop(loop_stack.pop().unwrap());
                 loop_stack.last_mut().unwrap().push(statement);
             }
             _ => ()
@@ -52,7 +52,7 @@ fn parse(chars: Vec<char>) -> Vec<SimpleStatement> {
 pub(crate) mod o1 {
     use std::io::{Read, stdin};
 
-    use crate::interpreter::{MEM_SIZE, Memory, minify, parse, SimpleStatement};
+    use crate::interpreter::{MEM_SIZE, Memory, minify, parse, Statement};
 
     pub fn run(pgm: &str) -> String {
         let pgm = minify(pgm);
@@ -61,7 +61,7 @@ pub(crate) mod o1 {
         out
     }
 
-    fn interpret(pgm: &Vec<SimpleStatement>) -> String {
+    fn interpret(pgm: &Vec<Statement>) -> String {
         let mut out = String::new();
         let mut pointer: usize = 0;
         let mut mem: [u8; MEM_SIZE] = [0; MEM_SIZE];
@@ -73,19 +73,19 @@ pub(crate) mod o1 {
         out
     }
 
-    fn execute(statement: &SimpleStatement, mem: &mut Memory, pointer: &mut usize, out: &mut String) {
+    fn execute(statement: &Statement, mem: &mut Memory, pointer: &mut usize, out: &mut String) {
         match statement {
-            SimpleStatement::R => if *pointer == MEM_SIZE - 1 { *pointer = 0 } else { *pointer += 1 },
-            SimpleStatement::L => if *pointer == 0 { *pointer = MEM_SIZE - 1 } else { *pointer -= 1 },
-            SimpleStatement::Inc => mem[*pointer] = mem[*pointer].wrapping_add(1),
-            SimpleStatement::Dec => mem[*pointer] = mem[*pointer].wrapping_sub(1),
-            SimpleStatement::Out => out.push(mem[*pointer] as u8 as char),
-            SimpleStatement::In => {
+            Statement::R => if *pointer == MEM_SIZE - 1 { *pointer = 0 } else { *pointer += 1 },
+            Statement::L => if *pointer == 0 { *pointer = MEM_SIZE - 1 } else { *pointer -= 1 },
+            Statement::Inc => mem[*pointer] = mem[*pointer].wrapping_add(1),
+            Statement::Dec => mem[*pointer] = mem[*pointer].wrapping_sub(1),
+            Statement::Out => out.push(mem[*pointer] as u8 as char),
+            Statement::In => {
                 let mut in_buffer = [0, 1];
                 stdin().read(&mut in_buffer).unwrap();
                 mem[*pointer] = in_buffer[0] as u8;
             }
-            SimpleStatement::Loop(vec) => {
+            Statement::Loop(vec) => {
                 while mem[*pointer] != 0 {
                     for s in vec {
                         execute(&s, mem, pointer, out);
@@ -99,9 +99,6 @@ pub(crate) mod o1 {
     #[cfg(test)]
     mod test {
         use crate::interpreter::o1::{execute, run, Statement};
-        use crate::interpreter::o1::Statement::{Dec, In, Inc, L, Loop, Out, R};
-        use crate::interpreter::parse;
-        use crate::o1::{execute, parse, run, Statement::{self, Dec, In, Inc, L, Loop, Out, R}};
 
         #[test]
         fn execute_simple() {
@@ -161,56 +158,123 @@ pub(crate) mod o1 {
 ///
 /// # optimization time
 /// some better optimizations like set null, repeating and doing more stuff with simplifying stuff
-pub(crate) mod o2 {
+pub mod o2 {
     use std::io::{Read, stdin};
 
-    use crate::interpreter::{minify, parse, SimpleStatement};
+    use crate::interpreter::{minify, parse, Statement};
+    use std::error::Error;
+    use std::fmt::{Display, Formatter};
+    use std::fmt;
+    use std::ops::Deref;
 
     const MEM_SIZE: usize = 0xFFFF;
 
     type Memory = [u8; MEM_SIZE];
 
-    enum Statement {
+    #[derive(PartialOrd, PartialEq, Ord, Eq, Clone, Debug)]
+    enum ExStatement {
         Inc,
         Dec,
         R,
         L,
         Out,
         In,
-        Loop(Vec<Statement>),
+        Loop(Vec<ExStatement>),
         SetNull,
+        Repeat(Box<ExStatement>, usize),
     }
 
+    impl From<Statement> for ExStatement {
+        fn from(s: Statement) -> Self {
+            match s {
+                Statement::L => ExStatement::L,
+                Statement::R => ExStatement::R,
+                Statement::Inc => ExStatement::Inc,
+                Statement::Dec => ExStatement::Dec,
+                Statement::In => ExStatement::In,
+                Statement::Out => ExStatement::Out,
+                Statement::Loop(v) => ExStatement::Loop(
+                    v.into_iter().map(|s| ExStatement::from(s)).collect()
+                ),
+            }
+        }
+    }
 
-    pub fn run(pgm: &str) -> String {
+    #[derive(Debug)]
+    pub struct BfErr {
+        msg: &'static str
+    }
+
+    impl BfErr {
+        pub fn new(msg: &'static str) -> BfErr {
+            BfErr { msg }
+        }
+    }
+
+    impl Display for BfErr {
+        fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+            write!(f, "Error interpreting brainfuck code: {}", self.msg)
+        }
+    }
+
+    impl Error for BfErr {}
+
+
+    pub fn run(pgm: &str) -> Result<String, BfErr> {
         let pgm = minify(pgm);
+        if pgm.len() < 1 { return Err(BfErr::new("no program found")); };
         let pgm = parse(pgm.chars().collect());
         let pgm = optimize(&pgm);
         let out = interpret(&pgm);
-        out
+        Ok(out)
     }
 
-    fn optimize(code: &Vec<SimpleStatement>) -> Vec<Statement> {
+    fn optimize(code: &Vec<Statement>) -> Vec<ExStatement> {
+        let code = o_set_null(code);
+        let code = o_repeat(code);
+        code
+    }
+
+    fn o_set_null(code: &Vec<Statement>) -> Vec<ExStatement> {
         code.iter().map(|s| {
             match s {
-                SimpleStatement::Loop(v) => {
-                    if let [SimpleStatement::Dec] = v[..] {
-                        Statement::SetNull
+                Statement::Loop(v) => {
+                    if let [Statement::Dec] = v[..] {
+                        ExStatement::SetNull
                     } else {
-                        Statement::Loop(optimize(v))
+                        ExStatement::Loop(optimize(v))
                     }
                 }
-                SimpleStatement::Inc => Statement::Inc,
-                SimpleStatement::Dec => Statement::Dec,
-                SimpleStatement::R => Statement::R,
-                SimpleStatement::L => Statement::L,
-                SimpleStatement::Out => Statement::Out,
-                SimpleStatement::In => Statement::In,
+                Statement::Inc => ExStatement::Inc,
+                Statement::Dec => ExStatement::Dec,
+                Statement::R => ExStatement::R,
+                Statement::L => ExStatement::L,
+                Statement::Out => ExStatement::Out,
+                Statement::In => ExStatement::In,
             }
         }).collect()
     }
 
-    fn interpret(pgm: &Vec<Statement>) -> String {
+    fn o_repeat(code: Vec<ExStatement>) -> Vec<ExStatement> {
+        let mut amount = 0;
+        let mut result: Vec<ExStatement> = vec![];
+
+        for i in 0..code.len() {
+            if code.get(i) == code.get(i + 1) {
+                amount += 1;
+            } else if amount == 0 {
+                result.push(code[i].clone())
+            } else {
+                amount += 1;
+                result.push(ExStatement::Repeat(Box::new(code[i].clone()), amount as usize));
+                amount = 0;
+            }
+        }
+
+        result
+    }
+
+    fn interpret(pgm: &Vec<ExStatement>) -> String {
         let mut out = String::new();
         let mut pointer: usize = 0;
         let mut mem: [u8; MEM_SIZE] = [0; MEM_SIZE];
@@ -222,49 +286,91 @@ pub(crate) mod o2 {
         out
     }
 
-    fn execute(statement: &Statement, mem: &mut Memory, pointer: &mut usize, out: &mut String) {
+    fn execute(statement: &ExStatement, mem: &mut Memory, pointer: &mut usize, out: &mut String) {
         match statement {
-            Statement::R => if *pointer == MEM_SIZE - 1 { *pointer = 0 } else { *pointer += 1 },
-            Statement::L => if *pointer == 0 { *pointer = MEM_SIZE - 1 } else { *pointer -= 1 },
-            Statement::Inc => mem[*pointer] = mem[*pointer].wrapping_add(1),
-            Statement::Dec => mem[*pointer] = mem[*pointer].wrapping_sub(1),
-            Statement::SetNull => mem[*pointer] = 0,
-            Statement::Out => out.push(mem[*pointer] as u8 as char),
-            Statement::In => {
+            ExStatement::R => if *pointer == MEM_SIZE - 1 { *pointer = 0 } else { *pointer += 1 },
+            ExStatement::L => if *pointer == 0 { *pointer = MEM_SIZE - 1 } else { *pointer -= 1 },
+            ExStatement::Inc => mem[*pointer] = mem[*pointer].wrapping_add(1),
+            ExStatement::Dec => mem[*pointer] = mem[*pointer].wrapping_sub(1),
+            ExStatement::SetNull => mem[*pointer] = 0,
+            ExStatement::Out => out.push(mem[*pointer] as u8 as char),
+            ExStatement::In => {
                 let mut in_buffer = [0, 1];
                 stdin().read(&mut in_buffer).unwrap();
                 mem[*pointer] = in_buffer[0] as u8;
             }
-            Statement::Loop(vec) => {
+            ExStatement::Loop(vec) => {
                 while mem[*pointer] != 0 {
                     for s in vec {
                         execute(&s, mem, pointer, out);
                     }
                 }
             }
-        }
+            ExStatement::Repeat(statement, amount) => {
+                match statement.deref() {
+                    ExStatement::R => {
+                        *pointer += amount;
+                        if *pointer > MEM_SIZE {
+                            *pointer %= MEM_SIZE
+                        }
+                    }
+                    ExStatement::L => *pointer = (*pointer).wrapping_sub(*amount),
+                    ExStatement::Inc => mem[*pointer] = mem[*pointer].wrapping_add(*amount as u8),
+                    ExStatement::Dec => mem[*pointer] = mem[*pointer].wrapping_sub(*amount as u8),
+                    ExStatement::Out => {
+                        for _ in 0..*amount {
+                            execute(&ExStatement::Out, mem, pointer, out)
+                        }
+                    }
+                    ExStatement::In => {
+                        for _ in 0..*amount {
+                            execute(&ExStatement::In, mem, pointer, out)
+                        }
+                    }
+                    ExStatement::Loop(v) => {
+                        for _ in 0..*amount {
+                            execute(&ExStatement::Loop(v.clone()), mem, pointer, out)
+                        }
+                    }
+                    _ => panic!("Invalid statement in repeat: {:?}", *statement)
+                }
+            }
+        };
     }
 
 
     #[cfg(test)]
     mod test {
-        use crate::interpreter::o2::{execute, run};
-        use crate::interpreter::parse;
-        use crate::interpreter::SimpleStatement::{Dec, In, Inc, L, Loop, Out, R};
-        use crate::o2::{execute, parse, run};
+        use crate::interpreter::o2::{run, o_repeat};
+        use crate::interpreter::o2::ExStatement::{L, R, Inc, Dec, Repeat};
 
         #[test]
         fn run_loop() {
             let program = "++++++++++[>++++++++++<-]>.";
-            let out = run(program);
+            let out = run(program).unwrap();
             assert_eq!(out, String::from("d"));
         }
 
         #[test]
         fn hello_world() {
             let program = "++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++.";
-            let out = run(program);
+            let out = run(program).unwrap();
             assert_eq!(out, String::from("Hello World!\n"));
+        }
+
+        #[test]
+        fn o_repeat_simple() {
+            let code = vec![Inc, Inc, Inc, R];
+            let expected = vec![Repeat(Box::new(Inc), 3), R];
+            println!("{}", code.len());
+            assert_eq!(expected, o_repeat(code));
+        }
+
+        #[test]
+        fn o_repeat_long() {
+            let code = vec![Inc, Inc, Inc, R, L, L, L, Dec, L, L, Dec];
+            let expected = vec![Repeat(Box::new(Inc), 3), R, Repeat(Box::new(L), 3), Dec, Repeat(Box::new(L), 2), Dec];
+            assert_eq!(expected, o_repeat(code));
         }
     }
 }
@@ -272,7 +378,7 @@ pub(crate) mod o2 {
 #[cfg(test)]
 mod tests {
     use crate::interpreter::parse;
-    use crate::interpreter::SimpleStatement::{Dec, In, Inc, L, Loop, Out, R};
+    use crate::interpreter::Statement::{Dec, In, Inc, L, Loop, Out, R};
 
     #[test]
     fn parse_no_loop() {

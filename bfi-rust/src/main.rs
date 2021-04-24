@@ -24,7 +24,7 @@ fn run(path: String) {
     let out = interpreter::o1::run(&*program);
     let end1 = start1.elapsed().unwrap();
     let start2 = SystemTime::now();
-    let out2 = interpreter::o2::run(&*program);
+    let out2 = interpreter::o2::run(&*program).unwrap();
     let end2 = start2.elapsed().unwrap();
     assert_eq!(out, out2);
     println!("{}\nFinished execution. Took o1: {}ms, o2: {}ms", out, end1.as_millis(), end2.as_millis());
