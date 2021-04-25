@@ -2,7 +2,9 @@
 //!  some better optimizations like set null, repeating and doing more stuff with simplifying stuff
 //!
 
-use std::io::{Read, stdin};
+mod patterns;
+
+use std::io::{Read, stdin, Write};
 
 use crate::interpreter::{minify, parse, Statement, Memory, MEM_SIZE};
 use std::error::Error;
@@ -17,6 +19,7 @@ enum ExStatement {
     R,
     L,
     Out,
+    DOut,
     In,
     Loop(Vec<ExStatement>),
     SetNull,
@@ -35,6 +38,7 @@ impl From<Statement> for ExStatement {
             Statement::Loop(v) => ExStatement::Loop(
                 v.into_iter().map(|s| ExStatement::from(s)).collect()
             ),
+            Statement::DOut => ExStatement::DOut
         }
     }
 }
@@ -59,10 +63,10 @@ impl Display for BfErr {
 impl Error for BfErr {}
 
 
-pub fn run(pgm: &str) -> Result<String, BfErr> {
+pub fn run(pgm: &str, direct_print: bool) -> Result<String, BfErr> {
     let pgm = minify(pgm);
     if pgm.len() < 1 { return Err(BfErr::new("no program found")); };
-    let pgm = parse(pgm.chars().collect());
+    let pgm = parse(pgm.chars().collect(), direct_print);
     let pgm = optimize(&pgm);
     let out = interpret(&pgm);
     Ok(out)
@@ -89,6 +93,7 @@ fn o_set_null(code: &Vec<Statement>) -> Vec<ExStatement> {
             Statement::R => ExStatement::R,
             Statement::L => ExStatement::L,
             Statement::Out => ExStatement::Out,
+            Statement::DOut => ExStatement::DOut,
             Statement::In => ExStatement::In,
         }
     }).collect()
@@ -133,6 +138,10 @@ fn execute(statement: &ExStatement, mem: &mut Memory, pointer: &mut usize, out: 
         ExStatement::Dec => mem[*pointer] = mem[*pointer].wrapping_sub(1),
         ExStatement::SetNull => mem[*pointer] = 0,
         ExStatement::Out => out.push(mem[*pointer] as u8 as char),
+        ExStatement::DOut => {
+            print!("{}", mem[*pointer] as u8 as char);
+            std::io::stdout().flush().unwrap();
+        }
         ExStatement::In => {
             let mut in_buffer = [0, 1];
             stdin().read(&mut in_buffer).unwrap();
@@ -156,22 +165,16 @@ fn execute(statement: &ExStatement, mem: &mut Memory, pointer: &mut usize, out: 
                 ExStatement::L => *pointer = (*pointer).wrapping_sub(*amount),
                 ExStatement::Inc => mem[*pointer] = mem[*pointer].wrapping_add(*amount as u8),
                 ExStatement::Dec => mem[*pointer] = mem[*pointer].wrapping_sub(*amount as u8),
-                ExStatement::Out => {
-                    for _ in 0..*amount {
-                        execute(&ExStatement::Out, mem, pointer, out)
-                    }
-                }
-                ExStatement::In => {
-                    for _ in 0..*amount {
-                        execute(&ExStatement::In, mem, pointer, out)
-                    }
-                }
                 ExStatement::Loop(v) => {
                     for _ in 0..*amount {
                         execute(&ExStatement::Loop(v.clone()), mem, pointer, out)
                     }
                 }
-                _ => panic!("Invalid statement in repeat: {:?}", *statement)
+                s => {
+                    for _ in 0..*amount {
+                        execute(s, mem, pointer, out)
+                    }
+                }
             }
         }
     };
@@ -180,20 +183,21 @@ fn execute(statement: &ExStatement, mem: &mut Memory, pointer: &mut usize, out: 
 
 #[cfg(test)]
 mod test {
-    use crate::interpreter::o2::{run, o_repeat};
-    use crate::interpreter::o2::ExStatement::{L, R, Inc, Dec, Repeat};
+    use crate::interpreter::optimized::{run, o_repeat};
+    use crate::interpreter::optimized::ExStatement::{Inc, Repeat, R, L};
+    use crate::interpreter::Statement::Dec;
 
     #[test]
     fn run_loop() {
         let program = "++++++++++[>++++++++++<-]>.";
-        let out = run(program).unwrap();
+        let out = run(program, false).unwrap();
         assert_eq!(out, String::from("d"));
     }
 
     #[test]
     fn hello_world() {
         let program = "++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++.";
-        let out = run(program).unwrap();
+        let out = run(program, false).unwrap();
         assert_eq!(out, String::from("Hello World!\n"));
     }
 

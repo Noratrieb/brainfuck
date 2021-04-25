@@ -1,6 +1,6 @@
-pub mod o0;
-pub mod o1;
-pub mod o2;
+pub mod simple;
+pub mod parsed;
+pub mod optimized;
 
 const MEM_SIZE: usize = 0xFFFF;
 
@@ -13,6 +13,7 @@ enum Statement {
     R,
     L,
     Out,
+    DOut,
     In,
     Loop(Vec<Statement>),
 }
@@ -23,7 +24,7 @@ fn minify(code: &str) -> String {
     code.chars().filter(|c| ALLOWED_CHARS.contains(c)).collect()
 }
 
-fn parse(chars: Vec<char>) -> Vec<Statement> {
+fn parse(chars: Vec<char>, direct_print: bool) -> Vec<Statement> {
     let mut loop_stack = vec![vec![]];
 
     for c in chars {
@@ -32,7 +33,13 @@ fn parse(chars: Vec<char>) -> Vec<Statement> {
             '-' => loop_stack.last_mut().unwrap().push(Statement::Dec),
             '>' => loop_stack.last_mut().unwrap().push(Statement::R),
             '<' => loop_stack.last_mut().unwrap().push(Statement::L),
-            '.' => loop_stack.last_mut().unwrap().push(Statement::Out),
+            '.' => {
+                if direct_print {
+                    loop_stack.last_mut().unwrap().push(Statement::DOut)
+                } else {
+                    loop_stack.last_mut().unwrap().push(Statement::Out)
+                }
+            }
             ',' => loop_stack.last_mut().unwrap().push(Statement::In),
             '[' => loop_stack.push(vec![]),
             ']' => {
@@ -62,7 +69,7 @@ mod tests {
     fn parse_no_loop() {
         let program = "+-<>,.";
         let statements = vec![Inc, Dec, L, R, In, Out];
-        let result = parse(program.chars().collect());
+        let result = parse(program.chars().collect(), false);
 
         assert_eq!(statements, result);
     }
@@ -71,7 +78,7 @@ mod tests {
     fn parse_simple_loop() {
         let program = "+[<<]-";
         let statements = vec![Inc, Loop(vec![L, L]), Dec];
-        let result = parse(program.chars().collect());
+        let result = parse(program.chars().collect(), false);
 
         assert_eq!(statements, result);
     }
@@ -80,7 +87,7 @@ mod tests {
     fn parse_complex_loops() {
         let program = ">[<[][<[<]>]>[>]]";
         let statements = vec![R, Loop(vec![L, Loop(vec![]), Loop(vec![L, Loop(vec![L]), R]), R, Loop(vec![R])])];
-        let result = parse(program.chars().collect());
+        let result = parse(program.chars().collect(), false);
 
         assert_eq!(statements, result);
     }

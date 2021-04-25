@@ -5,13 +5,13 @@
 //!  most importantly: loop jumps should be immediate
 #![allow(dead_code)]
 
-use std::io::{Read, stdin};
+use std::io::{Read, stdin, Write};
 
 use crate::interpreter::{MEM_SIZE, Memory, minify, parse, Statement};
 
 pub fn run(pgm: &str) -> String {
     let pgm = minify(pgm);
-    let pgm = parse(pgm.chars().collect());
+    let pgm = parse(pgm.chars().collect(), false);
     let out = interpret(&pgm);
     out
 }
@@ -47,13 +47,17 @@ fn execute(statement: &Statement, mem: &mut Memory, pointer: &mut usize, out: &m
                 }
             }
         }
+        Statement::DOut => {
+            print!("{}", mem[*pointer] as u8 as char);
+            std::io::stdout().flush().unwrap();
+        }
     }
 }
 
 
 #[cfg(test)]
 mod test {
-    use crate::interpreter::o1::{execute, run, Statement};
+    use crate::interpreter::parsed::{execute, run, Statement};
 
     #[test]
     fn execute_simple() {
