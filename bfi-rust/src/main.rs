@@ -30,7 +30,7 @@ fn run(program: String) {
     let out = interpreter::o1::run(&*program);
     let end1 = start1.elapsed().unwrap();*/
     let start2 = SystemTime::now();
-    let out2 = interpreter::o2::run(&*program, false).unwrap();
+    let out2 = interpreter::optimized::run(&*program, false).unwrap();
     let end2 = start2.elapsed().unwrap();
     //assert_eq!(out, out2);
     //println!("{}\nFinished execution. Took o1: 18008ms (for hanoi), o2: {}ms", out2/*, end1.as_millis()*/, end2.as_millis());

@@ -24,6 +24,7 @@ enum ExStatement {
     Loop(Vec<ExStatement>),
     SetNull,
     Repeat(Box<ExStatement>, usize),
+    ForLoop(usize, Box<ExStatement>),
 }
 
 impl From<Statement> for ExStatement {
@@ -177,6 +178,12 @@ fn execute(statement: &ExStatement, mem: &mut Memory, pointer: &mut usize, out: 
                 }
             }
         }
+        ExStatement::ForLoop(offset, statement) => {
+            *pointer += offset;
+            while mem[*pointer - offset] != 0 {
+                execute(statement, mem, pointer, out);
+            }
+        }
     };
 }
 
@@ -184,8 +191,7 @@ fn execute(statement: &ExStatement, mem: &mut Memory, pointer: &mut usize, out: 
 #[cfg(test)]
 mod test {
     use crate::interpreter::optimized::{run, o_repeat};
-    use crate::interpreter::optimized::ExStatement::{Inc, Repeat, R, L};
-    use crate::interpreter::Statement::Dec;
+    use crate::interpreter::optimized::ExStatement::{Inc, Repeat, R, L, Dec};
 
     #[test]
     fn run_loop() {
