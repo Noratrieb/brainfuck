@@ -1,13 +1,16 @@
+use crate::interpreter::optimized::PrintMode;
+use std::str::Chars;
+
 pub mod simple;
 pub mod parsed;
 pub mod optimized;
 
-const MEM_SIZE: usize = 0xFFFF;
+pub const MEM_SIZE: usize = 0xFFFF;
 
-type Memory = [u8; MEM_SIZE];
+pub type Memory = [u8; MEM_SIZE];
 
 #[derive(Debug, PartialOrd, PartialEq, Ord, Eq, Clone)]
-enum Statement {
+pub enum Statement {
     Inc,
     Dec,
     R,
@@ -20,11 +23,11 @@ enum Statement {
 
 const ALLOWED_CHARS: [char; 8] = ['>', '<', '+', '-', '.', ',', '[', ']'];
 
-fn minify(code: &str) -> String {
+pub fn minify(code: &str) -> String {
     code.chars().filter(|c| ALLOWED_CHARS.contains(c)).collect()
 }
 
-fn parse(chars: Vec<char>, direct_print: bool) -> Vec<Statement> {
+pub fn parse(chars: Chars, print_mode: PrintMode) -> Vec<Statement> {
     let mut loop_stack = vec![vec![]];
 
     for c in chars {
@@ -34,10 +37,9 @@ fn parse(chars: Vec<char>, direct_print: bool) -> Vec<Statement> {
             '>' => loop_stack.last_mut().unwrap().push(Statement::R),
             '<' => loop_stack.last_mut().unwrap().push(Statement::L),
             '.' => {
-                if direct_print {
-                    loop_stack.last_mut().unwrap().push(Statement::DOut)
-                } else {
-                    loop_stack.last_mut().unwrap().push(Statement::Out)
+                match print_mode {
+                    PrintMode::ToString => loop_stack.last_mut().unwrap().push(Statement::Out),
+                    PrintMode::DirectPrint => loop_stack.last_mut().unwrap().push(Statement::DOut)
                 }
             }
             ',' => loop_stack.last_mut().unwrap().push(Statement::In),

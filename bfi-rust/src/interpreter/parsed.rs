@@ -8,12 +8,15 @@
 use std::io::{Read, stdin, Write};
 
 use crate::interpreter::{MEM_SIZE, Memory, minify, parse, Statement};
+use crate::interpreter::optimized::PrintMode;
+use crate::repl::BrainfuckState;
 
 pub fn run(pgm: &str) -> String {
     let pgm = minify(pgm);
-    let pgm = parse(pgm.chars().collect(), false);
+    let pgm = parse(pgm.chars(), PrintMode::ToString);
     interpret(&pgm)
 }
+
 
 fn interpret(pgm: &[Statement]) -> String {
     let mut out = String::new();
@@ -25,6 +28,12 @@ fn interpret(pgm: &[Statement]) -> String {
     }
 
     out
+}
+
+pub fn interpret_with_state(pgm: &[Statement], state: &mut BrainfuckState) {
+    for s in pgm {
+        execute(s, &mut state.memory, &mut state.pointer, &mut String::new())
+    }
 }
 
 fn execute(statement: &Statement, mem: &mut Memory, pointer: &mut usize, out: &mut String) {

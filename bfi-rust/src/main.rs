@@ -3,37 +3,35 @@ mod repl;
 
 use std::{env, fs};
 use std::time::SystemTime;
+use crate::repl::start_repl;
+use crate::interpreter::optimized::{PrintMode};
+use std::error::Error;
 
 
 fn main() {
     let path = env::args().nth(1);
-    let path = match path {
-        Some(p) => p,
-        None => {
-            println!("Please specify a path");
-            return;
-        }
+
+    match path {
+        Some(p) => {
+            if let Err(why) = run_program(p) {
+                eprintln!("An error occurred in the program: {}", why)
+            }
+        },
+        None => start_repl()
     };
+}
+
+fn run_program(path: String) -> Result<(), Box<dyn Error>> {
     let program = match fs::read_to_string(path) {
         Ok(p) => p,
         Err(e) => {
             println!("Error reading file: {}", e);
-            return;
+            return Err(Box::from(e));
         }
     };
-
-    run(program);
-}
-
-fn run(program: String) {
-/*
-    let start1 = SystemTime::now();
-    let out = interpreter::o1::run(&*program);
-    let end1 = start1.elapsed().unwrap();*/
-    let start2 = SystemTime::now();
-    let out2 = interpreter::optimized::run(&*program, false).unwrap();
-    let end2 = start2.elapsed().unwrap();
-    //assert_eq!(out, out2);
-    //println!("{}\nFinished execution. Took o1: 18008ms (for hanoi), o2: {}ms", out2/*, end1.as_millis()*/, end2.as_millis());
-    println!("{}\nFinished execution. Took {}ms", out2/*, end1.as_millis()*/, end2.as_millis());
+    let start_time = SystemTime::now();
+    let out = interpreter::optimized::run(&*program, PrintMode::DirectPrint)?;
+    let duration = start_time.elapsed()?;
+    println!("{}\nFinished execution. Took {}ms", out, duration.as_millis());
+    Ok(())
 }

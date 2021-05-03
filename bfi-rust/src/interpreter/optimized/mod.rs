@@ -24,7 +24,7 @@ enum ExStatement {
     Loop(Vec<ExStatement>),
     SetNull,
     Repeat(Box<ExStatement>, usize),
-    ForLoop(usize, Box<ExStatement>),
+    _ForLoop(usize, Box<ExStatement>),
 }
 
 impl From<Statement> for ExStatement {
@@ -46,7 +46,7 @@ impl From<Statement> for ExStatement {
 
 #[derive(Debug)]
 pub struct BfErr {
-    msg: &'static str
+    msg: &'static str,
 }
 
 impl BfErr {
@@ -64,10 +64,15 @@ impl Display for BfErr {
 impl Error for BfErr {}
 
 
-pub fn run(pgm: &str, direct_print: bool) -> Result<String, BfErr> {
+pub enum PrintMode {
+    ToString,
+    DirectPrint,
+}
+
+pub fn run(pgm: &str, print_mode: PrintMode) -> Result<String, BfErr> {
     let pgm = minify(pgm);
     if pgm.is_empty() { return Err(BfErr::new("no program found")); };
-    let pgm = parse(pgm.chars().collect(), direct_print);
+    let pgm = parse(pgm.chars(), print_mode);
     let pgm = optimize(&pgm);
     let out = interpret(&pgm);
     Ok(out)
@@ -177,7 +182,7 @@ fn execute(statement: &ExStatement, mem: &mut Memory, pointer: &mut usize, out: 
                 }
             }
         }
-        ExStatement::ForLoop(offset, statement) => {
+        ExStatement::_ForLoop(offset, statement) => {
             *pointer += offset;
             while mem[*pointer - offset] != 0 {
                 execute(statement, mem, pointer, out);
