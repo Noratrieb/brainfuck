@@ -37,7 +37,7 @@ impl From<Statement> for ExStatement {
             Statement::In => ExStatement::In,
             Statement::Out => ExStatement::Out,
             Statement::Loop(v) => ExStatement::Loop(
-                v.into_iter().map(|s| ExStatement::from(s)).collect()
+                v.into_iter().map(ExStatement::from).collect()
             ),
             Statement::DOut => ExStatement::DOut
         }
@@ -66,20 +66,19 @@ impl Error for BfErr {}
 
 pub fn run(pgm: &str, direct_print: bool) -> Result<String, BfErr> {
     let pgm = minify(pgm);
-    if pgm.len() < 1 { return Err(BfErr::new("no program found")); };
+    if pgm.is_empty() { return Err(BfErr::new("no program found")); };
     let pgm = parse(pgm.chars().collect(), direct_print);
     let pgm = optimize(&pgm);
     let out = interpret(&pgm);
     Ok(out)
 }
 
-fn optimize(code: &Vec<Statement>) -> Vec<ExStatement> {
+fn optimize(code: &[Statement]) -> Vec<ExStatement> {
     let code = o_set_null(code);
-    let code = o_repeat(code);
-    code
+    o_repeat(code)
 }
 
-fn o_set_null(code: &Vec<Statement>) -> Vec<ExStatement> {
+fn o_set_null(code: &[Statement]) -> Vec<ExStatement> {
     code.iter().map(|s| {
         match s {
             Statement::Loop(v) => {
@@ -119,7 +118,7 @@ fn o_repeat(code: Vec<ExStatement>) -> Vec<ExStatement> {
     result
 }
 
-fn interpret(pgm: &Vec<ExStatement>) -> String {
+fn interpret(pgm: &[ExStatement]) -> String {
     let mut out = String::new();
     let mut pointer: usize = 0;
     let mut mem: [u8; MEM_SIZE] = [0; MEM_SIZE];
@@ -145,7 +144,7 @@ fn execute(statement: &ExStatement, mem: &mut Memory, pointer: &mut usize, out: 
         }
         ExStatement::In => {
             let mut in_buffer = [0, 1];
-            stdin().read(&mut in_buffer).unwrap();
+            stdin().read_exact(&mut in_buffer).unwrap();
             mem[*pointer] = in_buffer[0] as u8;
         }
         ExStatement::Loop(vec) => {

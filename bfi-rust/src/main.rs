@@ -1,11 +1,12 @@
 mod interpreter;
+mod repl;
 
 use std::{env, fs};
 use std::time::SystemTime;
 
 
 fn main() {
-    let path = env::args().skip(1).next();
+    let path = env::args().nth(1);
     let path = match path {
         Some(p) => p,
         None => {

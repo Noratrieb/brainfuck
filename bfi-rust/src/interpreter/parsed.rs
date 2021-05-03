@@ -12,11 +12,10 @@ use crate::interpreter::{MEM_SIZE, Memory, minify, parse, Statement};
 pub fn run(pgm: &str) -> String {
     let pgm = minify(pgm);
     let pgm = parse(pgm.chars().collect(), false);
-    let out = interpret(&pgm);
-    out
+    interpret(&pgm)
 }
 
-fn interpret(pgm: &Vec<Statement>) -> String {
+fn interpret(pgm: &[Statement]) -> String {
     let mut out = String::new();
     let mut pointer: usize = 0;
     let mut mem: [u8; MEM_SIZE] = [0; MEM_SIZE];
@@ -37,7 +36,7 @@ fn execute(statement: &Statement, mem: &mut Memory, pointer: &mut usize, out: &m
         Statement::Out => out.push(mem[*pointer] as u8 as char),
         Statement::In => {
             let mut in_buffer = [0, 1];
-            stdin().read(&mut in_buffer).unwrap();
+            stdin().read_exact(&mut in_buffer).unwrap();
             mem[*pointer] = in_buffer[0] as u8;
         }
         Statement::Loop(vec) => {

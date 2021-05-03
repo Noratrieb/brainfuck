@@ -27,7 +27,7 @@ fn interpret(pgm: Vec<char>) -> String {
             '-' => mem[pointer] = mem[pointer].wrapping_sub(1),
             '.' => out.push(mem[pointer] as u8 as char),
             ',' => {
-                stdin().read(&mut in_buffer).unwrap();
+                stdin().read_exact(&mut in_buffer).unwrap();
                 mem[pointer] = in_buffer[0] as u8;
             }
             '[' => {

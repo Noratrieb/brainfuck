@@ -50,7 +50,7 @@ fn parse(chars: Vec<char>, direct_print: bool) -> Vec<Statement> {
         }
     }
 
-    return loop_stack.pop().unwrap();
+    loop_stack.pop().unwrap()
 }
 
 #[cfg(test)]
