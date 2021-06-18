@@ -10,7 +10,7 @@ public class Brainfuck {
 
     public List<Character> minify(String program) {
         List<Character> chars = List.of('>', '<', '+', '-', '.', ',', '[', ']');
-        return program.chars()
+        return program.chars().parallel()
                 .mapToObj(c -> (char) c)
                 .filter(chars::contains)
                 .collect(Collectors.toList());
