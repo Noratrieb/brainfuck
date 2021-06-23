@@ -1,3 +1,7 @@
+$main-color: #282c34;
+$main-color-brighter: #323942;
+$font-color: ghostwhite;
+
 .App {
   text-align: center;
 }
@@ -8,16 +12,48 @@
 }
 
 .App-header {
-  background-color: #282c34;
+  background-color: $main-color;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   font-size: calc(10px + 2vmin);
-  color: white;
+  color: $font-color;
 }
 
 .App-link {
   color: #61dafb;
+}
+
+.bf-input {
+  .code-input {
+    resize: none;
+    width: 80vw;
+    height: 400px;
+    font-size: 100px;
+  }
+}
+
+.bf-run {
+  margin: 20px;
+
+  button {
+    height: 50px;
+    width: 200px;
+  }
+}
+
+.bf-output {
+  .output-area {
+    resize: none;
+    width: 80vw;
+    height: 200px;
+    font-size: 20px;
+  }
+}
+
+textarea {
+  background-color: $main-color-brighter;
+  color: $font-color;
 }
