@@ -40,7 +40,8 @@ const RunDisplay = ({interpreter}: RunDisplayProps) => {
                 </tr>
                 <tr>
                     {
-                        arrayWithIndex.map((n) => <td className="pointer" key={n}>{interpreter.pointer === n && "^"}</td>)
+                        arrayWithIndex.map((n) => <td className="pointer"
+                                                      key={n}>{interpreter.pointer === n && "^"}</td>)
                     }
                 </tr>
                 </tbody>
