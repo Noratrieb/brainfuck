@@ -1,7 +1,7 @@
 import React from 'react';
 import Interpreter from "../brainfuck/Interpreter";
 
-const MAX_TABLE_COLUMNS = 30;
+const MAX_TABLE_COLUMNS = 20;
 
 interface RunDisplayProps {
     interpreter: Interpreter,

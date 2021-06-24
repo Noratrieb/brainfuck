@@ -51,12 +51,8 @@ $medium-color: #78787f;
     border: $border;
   }
 
-  .pointer {
-
-  }
-
   th, td {
-    width: 30px;
+    min-width: 60px;
     text-align: center;
   }
 }
@@ -67,6 +63,13 @@ $medium-color: #78787f;
   button {
     height: 50px;
     width: 200px;
+  }
+
+  .program-input-area {
+    resize: none;
+    width: 80vw;
+    height: 50px;
+    font-size: 30px;
   }
 
   .error {

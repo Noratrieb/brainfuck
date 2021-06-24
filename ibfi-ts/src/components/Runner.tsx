@@ -1,33 +1,47 @@
-import React, {useCallback, useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import Interpreter from "../brainfuck/Interpreter";
 import CodeDisplay from "./CodeDisplay";
 import RunDisplay from "./RunDisplay";
+import {CodeOptions} from "./CodeInput";
 
 interface RunInfoProps {
-    input: string,
+    input: [string, CodeOptions],
     setRunning: (running: boolean) => void,
     running: boolean
-    inHandler: () => number,
     outHandler: (char: number) => void,
 }
 
-const Runner = ({setRunning, running, inHandler, outHandler, input}: RunInfoProps) => {
+const Runner = ({setRunning, running, outHandler, input}: RunInfoProps) => {
     const [speed, setSpeed] = useState(0);
     const [interpreter, setInterpreter] = useState<Interpreter | null>(null);
     const [error, setError] = useState<string | null>(null);
 
     const [, setRerenderNumber] = useState(0);
 
-    const errorHandler = (msg: string) => {
-        setError(msg);
+    const inputArea = useRef<HTMLTextAreaElement>(null);
+
+
+    const inputHandler = () => {
+        if (!inputArea.current) {
+            throw new Error("Could not read input")
+        }
+        const value = inputArea.current.value;
+        if (value.length < 1) {
+            throw new Error("No input found");
+        }
+        const char = value.charCodeAt(0);
+        inputArea.current.value = value.substr(1);
+        return char;
     }
+
+    const errorHandler = (msg: string) => setError(msg);
 
     const startHandler = useCallback(() => {
         setSpeed(0);
-        setInterpreter(new Interpreter(input, outHandler, inHandler, errorHandler));
+        setInterpreter(new Interpreter(input, outHandler, inputHandler, errorHandler));
         setRunning(false);
         setRunning(true);
-    }, [input, inHandler, outHandler, setRunning]);
+    }, [input, outHandler, setRunning]);
 
     const stopHandler = () => setRunning(false);
 
@@ -58,7 +72,7 @@ const Runner = ({setRunning, running, inHandler, outHandler, input}: RunInfoProp
         <div className="bf-run">
             {
                 running && interpreter && <>
-                    <CodeDisplay code={input} index={interpreter.codePointer}/>
+                    <CodeDisplay code={interpreter.code} index={interpreter.programCounter}/>
                     <RunDisplay interpreter={interpreter}/>
                 </>
             }
@@ -78,7 +92,13 @@ const Runner = ({setRunning, running, inHandler, outHandler, input}: RunInfoProp
                 </>
             }
             {
-                error && <div className="error">Error: '{error}'</div>
+                error && <div className="error">{error}</div>
+            }
+            {
+                running && <div>
+                    <div>Input:</div>
+                    <textarea className="program-input-area" ref={inputArea}/>
+                </div>
             }
         </div>
     );
