@@ -4,8 +4,8 @@ export default class Interpreter {
     private readonly _code: string;
     private _codePointer: number;
 
-    private _inHandler: (() => number);
-    private _outHandler: ((char: number) => void);
+    private readonly _inHandler: (() => number);
+    private readonly _outHandler: ((char: number) => void);
 
     constructor(code: string, outHandler: ((char: number) => void), inHandler: (() => number)) {
         const buf = new ArrayBuffer(32000);
@@ -18,7 +18,7 @@ export default class Interpreter {
     }
 
     public next() {
-        switch (this._code[++this._codePointer]) {
+        switch (this._code[this._codePointer++]) {
             case '+':
                 this._array[this._pointer]++;
                 break;
@@ -32,27 +32,47 @@ export default class Interpreter {
                 this._pointer--;
                 break;
             case '.':
-                this._outHandler(this._array[this._pointer]);
+                this._outHandler(this.value);
                 break;
             case ',':
                 this._array[this._pointer] = this._inHandler();
                 break;
             case '[':
-                console.error("does not support [ for now")
+                if (this.value === 0) {
+                    let level = 0;
+                    while (this.instruction !== ']' || level > -1) {
+                        this._codePointer++;
+                        if (this.instruction === '[') level++;
+                        else if (this.instruction === ']') level--;
+                    }
+                }
                 break;
             case ']':
-                console.error("does not support ] for now")
+                if (this.value !== 0) {
+                    let level = 0;
+                    while (this.instruction !== '[' || level > -1) {
+                        this._codePointer--;
+                        if (this.instruction === '[') level--;
+                        else if (this.instruction === ']') level++;
+                    }
+                }
+                break;
+            case undefined:
+                console.warn("reached end");
                 break;
             default: {
             }
         }
-        console.log("next step")
+        console.log(`char: ${this.code[this.codePointer - 1]}  pointer: ${this.pointer} value: ${this.array[this.pointer]}`)
     }
 
     public prev() {
 
     }
 
+    get instruction(): string {
+        return this._code[this._codePointer];
+    }
 
     get value(): number {
         return this._array[this._pointer];

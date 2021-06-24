@@ -1,33 +1,31 @@
 import './App.scss';
 import CodeInput from "./components/CodeInput";
 import ProgramOutput from "./components/ProgramOutput";
-import React, {useState} from "react";
-import Interpreter from "./brainfuck/Interpreter";
-import RunInfo from "./components/RunInfo";
+import React, {useCallback, useState} from "react";
+import Runner from "./components/Runner";
 
 function App() {
-    const [interpreter, setInterpreter] = useState<Interpreter | null>(null);
-
     const [out, setOut] = useState("");
     const [input, setInput] = useState("");
+    const [running, setRunning] = useState(false);
 
-    const outHandler = (char: number) => {
+    const outHandler = useCallback((char: number) => {
         setOut(out => out + String.fromCharCode(char))
-    }
+    }, []);
 
-    const inHandler = (): number => {
+    const inHandler = useCallback((): number => {
         return 65;
-    }
-
-    const start = () => setInterpreter(new Interpreter(input, outHandler, inHandler));
-    const next = () => interpreter?.next();
-    const prev = () => interpreter?.prev();
+    }, []);
 
     return (
         <div className="App-header">
-            <CodeInput setInput={input => setInput(input)}/>
-            <RunInfo nextHandler={next} prevHandler={prev} startHandler={start} interpreter={interpreter}/>
-            <ProgramOutput text={out}/>
+            {
+                !running && <CodeInput setInput={input => setInput(input)}/>
+            }
+            <Runner running={running} setRunning={setRunning} input={input} outHandler={outHandler} inHandler={inHandler}/>
+            {
+                running && <ProgramOutput text={out}/>
+            }
         </div>
     );
 }

@@ -35,6 +35,31 @@ $font-color: ghostwhite;
   }
 }
 
+.code-display-wrapper {
+  max-width: 80vw;
+
+  span {
+    word-wrap: break-word;
+  }
+}
+
+.memory-display-table {
+  $border: 1px solid $font-color;
+
+  th, .cell {
+    border: $border;
+  }
+
+  .pointer {
+
+  }
+
+  th, td {
+    width: 30px;
+    text-align: center;
+  }
+}
+
 .bf-run {
   margin: 20px;
 
