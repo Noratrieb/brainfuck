@@ -1,13 +1,18 @@
+type InHandler = (() => number);
+type OutHandler = ((char: number) => void);
+type ErrorHandler = ((msg: string) => void);
+
 export default class Interpreter {
     private readonly _array: Uint8Array;
     private _pointer: number;
     private readonly _code: string;
     private _codePointer: number;
 
-    private readonly _inHandler: (() => number);
-    private readonly _outHandler: ((char: number) => void);
+    private readonly _inHandler: InHandler;
+    private readonly _outHandler: OutHandler;
+    private readonly _errorHandler: ErrorHandler;
 
-    constructor(code: string, outHandler: ((char: number) => void), inHandler: (() => number)) {
+    constructor(code: string, outHandler: OutHandler, inHandler: InHandler, errorHandler: ErrorHandler) {
         const buf = new ArrayBuffer(32000);
         this._array = new Uint8Array(buf);
         this._pointer = 0;
@@ -15,6 +20,7 @@ export default class Interpreter {
         this._codePointer = 0;
         this._inHandler = inHandler;
         this._outHandler = outHandler;
+        this._errorHandler = errorHandler;
     }
 
     public next() {
@@ -29,6 +35,10 @@ export default class Interpreter {
                 this._pointer++;
                 break;
             case '<':
+                if (this._pointer === 0) {
+                    this._errorHandler("Cannot wrap left");
+                    break;
+                }
                 this._pointer--;
                 break;
             case '.':
@@ -40,24 +50,25 @@ export default class Interpreter {
             case '[':
                 if (this.value === 0) {
                     let level = 0;
-                    while (this.instruction !== ']' || level > -1) {
+                    while (this.lastInstruction !== ']' || level > -1) {
                         this._codePointer++;
-                        if (this.instruction === '[') level++;
-                        else if (this.instruction === ']') level--;
+                        if (this.lastInstruction === '[') level++;
+                        else if (this.lastInstruction === ']') level--;
                     }
                 }
                 break;
             case ']':
                 if (this.value !== 0) {
                     let level = 0;
-                    while (this.instruction !== '[' || level > -1) {
+                    while (this.lastInstruction !== '[' || level > -1) {
                         this._codePointer--;
-                        if (this.instruction === '[') level--;
-                        else if (this.instruction === ']') level++;
+                        if (this.lastInstruction === '[') level--;
+                        else if (this.lastInstruction === ']') level++;
                     }
                 }
                 break;
             case undefined:
+                this._pointer--;
                 console.warn("reached end");
                 break;
             default: {
@@ -70,8 +81,12 @@ export default class Interpreter {
 
     }
 
-    get instruction(): string {
-        return this._code[this._codePointer];
+    get reachedEnd(): boolean {
+        return this._codePointer === this._code.length - 1;
+    }
+
+    get lastInstruction(): string {
+        return this._code[this._codePointer - 1];
     }
 
     get value(): number {

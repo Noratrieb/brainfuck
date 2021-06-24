@@ -1,6 +1,7 @@
 $main-color: #282c34;
 $main-color-brighter: #323942;
-$font-color: ghostwhite;
+$light-color: ghostwhite;
+$medium-color: #78787f;
 
 .App {
   text-align: center;
@@ -19,7 +20,7 @@ $font-color: ghostwhite;
   align-items: center;
   justify-content: center;
   font-size: calc(10px + 2vmin);
-  color: $font-color;
+  color: $light-color;
 }
 
 .App-link {
@@ -44,7 +45,7 @@ $font-color: ghostwhite;
 }
 
 .memory-display-table {
-  $border: 1px solid $font-color;
+  $border: 1px solid $light-color;
 
   th, .cell {
     border: $border;
@@ -67,6 +68,10 @@ $font-color: ghostwhite;
     height: 50px;
     width: 200px;
   }
+
+  .error {
+    background-color: #664242FF;
+  }
 }
 
 .bf-output {
@@ -80,5 +85,16 @@ $font-color: ghostwhite;
 
 textarea {
   background-color: $main-color-brighter;
-  color: $font-color;
+  color: $light-color;
+}
+
+button {
+  background-color: $medium-color;
+  font-size: 20px;
+  border: 1px solid $main-color;
+
+  &:hover {
+    cursor: pointer;
+    background-color: $light-color;
+  }
 }

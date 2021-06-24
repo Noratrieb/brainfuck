@@ -12,64 +12,76 @@ interface RunInfoProps {
 }
 
 const Runner = ({setRunning, running, inHandler, outHandler, input}: RunInfoProps) => {
-        const [speed, setSpeed] = useState(0);
-        const [interpreter, setInterpreter] = useState<Interpreter | null>(null);
+    const [speed, setSpeed] = useState(0);
+    const [interpreter, setInterpreter] = useState<Interpreter | null>(null);
+    const [error, setError] = useState<string | null>(null);
 
-        const [, setRerenderNumber] = useState(0);
+    const [, setRerenderNumber] = useState(0);
 
-        const startHandler = useCallback(() => {
+    const errorHandler = (msg: string) => {
+        setError(msg);
+    }
+
+    const startHandler = useCallback(() => {
+        setSpeed(0);
+        setInterpreter(new Interpreter(input, outHandler, inHandler, errorHandler));
+        setRunning(false);
+        setRunning(true);
+    }, [input, inHandler, outHandler, setRunning]);
+
+    const stopHandler = () => setRunning(false);
+
+    const nextHandler = useCallback(() => {
+        setError(null);
+        interpreter?.next();
+        if (interpreter?.reachedEnd) {
             setSpeed(0);
-            setInterpreter(new Interpreter(input, outHandler, inHandler));
-            setRunning(true);
-        }, [input, inHandler, outHandler, setRunning]);
+        }
+        setRerenderNumber(n => n + 1);
+    }, [interpreter]);
 
-        const stopHandler = () => setRunning(false);
-
-        const nextHandler = useCallback(() => {
-            interpreter?.next();
-            setRerenderNumber(n => n + 1);
-        }, [interpreter]);
-
-        useEffect(() => {
-            if (running) {
-                if (speed === 0) {
-                    return;
-                }
-                const interval = setInterval(() => {
-                    nextHandler();
-                }, 1000 / (speed));
-
-                return () => clearInterval(interval);
+    useEffect(() => {
+        if (running) {
+            if (speed === 0) {
+                return;
             }
-        }, [running, nextHandler, speed]);
+            const interval = setInterval(() => {
+                nextHandler();
+            }, 1000 / (speed));
+
+            return () => clearInterval(interval);
+        }
+    }, [running, nextHandler, speed]);
 
 
-        return (
-            <div className="bf-run">
-                {running && interpreter && <>
+    return (
+        <div className="bf-run">
+            {
+                running && interpreter && <>
                     <CodeDisplay code={input} index={interpreter.codePointer}/>
                     <RunDisplay interpreter={interpreter}/>
                 </>
-                }
-                <div>
-                    <button onClick={startHandler}>Start</button>
-                    <button onClick={stopHandler}>Stop</button>
-                    <button onClick={nextHandler}>Next</button>
-                </div>
-                {
-                    running &&
-                    <>
-                        <div>
-                            <label htmlFor="run-info-speed-range">Speed</label>
-                            <input type="range" id="run-info-speed-range" value={speed}
-                                   onChange={e => setSpeed(+e.target.value)}/>
-                            <span> {speed}</span>
-                        </div>
-                    </>
-                }
+            }
+            <div>
+                <button onClick={stopHandler}>Back</button>
+                <button onClick={startHandler}>Start</button>
+                <button onClick={nextHandler}>Next</button>
             </div>
-        );
-    }
-;
+            {
+                running && <>
+                    <div>
+                        <label htmlFor="run-info-speed-range">Speed</label>
+                        <input type="range" id="run-info-speed-range" value={speed}
+                               onChange={e => setSpeed(+e.target.value)}/>
+                        <span> {speed}</span>
+                    </div>
+                </>
+            }
+            {
+                error && <div className="error">Error: '{error}'</div>
+            }
+        </div>
+    );
+};
 
 export default Runner;

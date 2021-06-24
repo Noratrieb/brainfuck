@@ -17,12 +17,19 @@ function App() {
         return 65;
     }, []);
 
+    const runHandler = (run: boolean) => {
+        setRunning(run);
+        if (!run) {
+            setOut("");
+        }
+    }
+
     return (
         <div className="App-header">
             {
                 !running && <CodeInput setInput={input => setInput(input)}/>
             }
-            <Runner running={running} setRunning={setRunning} input={input} outHandler={outHandler} inHandler={inHandler}/>
+            <Runner running={running} setRunning={runHandler} input={input} outHandler={outHandler} inHandler={inHandler}/>
             {
                 running && <ProgramOutput text={out}/>
             }
