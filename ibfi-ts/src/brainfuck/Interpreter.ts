@@ -114,10 +114,6 @@ export default class Interpreter {
         }
     }
 
-    public prev() {
-        // - will add some day
-    }
-
     get reachedEnd(): boolean {
         return this._programCounter === this._code.length;
     }

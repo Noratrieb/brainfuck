@@ -12,9 +12,9 @@ const CodeDisplay = ({code, index}: CodeDisplayProps) => {
 
     return (
         <div className="code-display-wrapper">
-            <span>{firstCodePart}</span>
-            <span style={{backgroundColor: "red"}}>{code[index] || " "}</span>
-            <span>{secondCodePart}</span>
+            <code>{firstCodePart}</code>
+            <code style={{backgroundColor: "red"}}>{code[index] || " "}</code>
+            <code>{secondCodePart}</code>
         </div>
     );
 };
