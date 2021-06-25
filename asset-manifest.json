@@ -1,20 +1,20 @@
 {
   "files": {
-    "main.css": "/brainfuck/static/css/main.9eade52b.chunk.css",
-    "main.js": "/brainfuck/static/js/main.cb19c05d.chunk.js",
-    "main.js.map": "/brainfuck/static/js/main.cb19c05d.chunk.js.map",
+    "main.css": "/brainfuck/static/css/main.53e7f6e8.chunk.css",
+    "main.js": "/brainfuck/static/js/main.3a86d9d8.chunk.js",
+    "main.js.map": "/brainfuck/static/js/main.3a86d9d8.chunk.js.map",
     "runtime-main.js": "/brainfuck/static/js/runtime-main.b1cc60e8.js",
     "runtime-main.js.map": "/brainfuck/static/js/runtime-main.b1cc60e8.js.map",
-    "static/js/2.a611059c.chunk.js": "/brainfuck/static/js/2.a611059c.chunk.js",
-    "static/js/2.a611059c.chunk.js.map": "/brainfuck/static/js/2.a611059c.chunk.js.map",
+    "static/js/2.305014b7.chunk.js": "/brainfuck/static/js/2.305014b7.chunk.js",
+    "static/js/2.305014b7.chunk.js.map": "/brainfuck/static/js/2.305014b7.chunk.js.map",
     "index.html": "/brainfuck/index.html",
-    "static/css/main.9eade52b.chunk.css.map": "/brainfuck/static/css/main.9eade52b.chunk.css.map",
-    "static/js/2.a611059c.chunk.js.LICENSE.txt": "/brainfuck/static/js/2.a611059c.chunk.js.LICENSE.txt"
+    "static/css/main.53e7f6e8.chunk.css.map": "/brainfuck/static/css/main.53e7f6e8.chunk.css.map",
+    "static/js/2.305014b7.chunk.js.LICENSE.txt": "/brainfuck/static/js/2.305014b7.chunk.js.LICENSE.txt"
   },
   "entrypoints": [
     "static/js/runtime-main.b1cc60e8.js",
-    "static/js/2.a611059c.chunk.js",
-    "static/css/main.9eade52b.chunk.css",
-    "static/js/main.cb19c05d.chunk.js"
+    "static/js/2.305014b7.chunk.js",
+    "static/css/main.53e7f6e8.chunk.css",
+    "static/js/main.3a86d9d8.chunk.js"
   ]
 }
