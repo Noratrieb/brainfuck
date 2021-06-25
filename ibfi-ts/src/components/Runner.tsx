@@ -14,7 +14,9 @@ interface RunInfoProps {
 const Runner = ({setRunning, running, outHandler, input}: RunInfoProps) => {
     const [speed, setSpeed] = useState(0);
     const [interpreter, setInterpreter] = useState<Interpreter | null>(null);
-    const [error, setError] = useState<string | null>(null);
+    const [info, setInfo] = useState<string | null>(null);
+    const [startTime, setStartTime] = useState(0);
+
 
     const [, setRerenderNumber] = useState(0);
 
@@ -34,34 +36,48 @@ const Runner = ({setRunning, running, outHandler, input}: RunInfoProps) => {
         return char;
     }
 
-    const errorHandler = (msg: string) => setError(msg);
-
     const startHandler = useCallback(() => {
-        setSpeed(0);
-        setInterpreter(new Interpreter(input, outHandler, inputHandler, errorHandler));
+        if (input[1].directStart) {
+            setSpeed(100);
+        } else {
+            setSpeed(0);
+        }
+
+        setStartTime(Date.now);
+        setInterpreter(new Interpreter(input, outHandler, inputHandler));
         setRunning(false);
         setRunning(true);
     }, [input, outHandler, setRunning]);
 
-    const stopHandler = () => setRunning(false);
+    const stopHandler = () => {
+        setRunning(false);
+        setInfo(null);
+    }
 
     const nextHandler = useCallback(() => {
-        setError(null);
-        interpreter?.next();
-        if (interpreter?.reachedEnd) {
+        setInfo(null);
+        try {
+            interpreter?.next();
+        } catch (e) {
+            setInfo(e.message);
             setSpeed(0);
         }
+        if (interpreter?.reachedEnd) {
+            setSpeed(0);
+            setInfo(`Finished Execution. Took ${(Date.now() - startTime) / 1000}s`)
+        }
         setRerenderNumber(n => n + 1);
-    }, [interpreter]);
+    }, [interpreter, startTime]);
 
     useEffect(() => {
         if (running) {
             if (speed === 0) {
                 return;
             }
+
             const interval = setInterval(() => {
                 nextHandler();
-            }, 1000 / (speed));
+            }, 1000 / (speed * 10));
 
             return () => clearInterval(interval);
         }
@@ -77,23 +93,28 @@ const Runner = ({setRunning, running, outHandler, input}: RunInfoProps) => {
                 </>
             }
             <div>
-                <button onClick={stopHandler}>Back</button>
-                <button onClick={startHandler}>Start</button>
-                <button onClick={nextHandler}>Next</button>
+                {running && <button onClick={stopHandler}>Back</button>}
+                <button onClick={startHandler}>{running ? "Restart" : "Start"}</button>
+                {running && <button onClick={nextHandler}>Next</button>}
             </div>
             {
-                running && <>
-                    <div>
-                        <label htmlFor="run-info-speed-range">Speed</label>
-                        <input type="range" id="run-info-speed-range" value={speed}
-                               onChange={e => setSpeed(+e.target.value)}/>
-                        <span> {speed}</span>
-                    </div>
-                </>
+                running &&
+                <div>
+                    <label htmlFor="run-info-speed-range">Speed</label>
+                    <input type="range" id="run-info-speed-range" value={speed}
+                           onChange={e => setSpeed(+e.target.value)}/>
+                    <span> {speed}</span>
+                    <span>
+                            <button onClick={() => setSpeed(s => s === 0 ? 0 : s - 1)}
+                                    className="small-speed-button">-</button>
+                            <button onClick={() => setSpeed(0)}
+                                    className="small-speed-button">0</button>
+                            <button onClick={() => setSpeed(s => s === 100 ? 100 : s + 1)}
+                                    className="small-speed-button">+</button>
+                        </span>
+                </div>
             }
-            {
-                error && <div className="error">{error}</div>
-            }
+            {info && <div className="info">{info}</div>}
             {
                 running && <div>
                     <div>Input:</div>

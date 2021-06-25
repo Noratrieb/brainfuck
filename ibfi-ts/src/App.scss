@@ -38,6 +38,7 @@ $medium-color: #78787f;
 
 .code-display-wrapper {
   max-width: 80vw;
+  font-family: monospace;
 
   span {
     word-wrap: break-word;
@@ -55,6 +56,15 @@ $medium-color: #78787f;
     min-width: 60px;
     text-align: center;
   }
+
+  .array-set-value-field {
+    min-width: 50px;
+    max-width: 100px;
+    height: 40px;
+    color: $light-color;
+    font-size: 30px;
+    background-color: $main-color-brighter;
+  }
 }
 
 .bf-run {
@@ -65,6 +75,11 @@ $medium-color: #78787f;
     width: 200px;
   }
 
+  .small-speed-button {
+    height: 40px;
+    width: 40px;
+  }
+
   .program-input-area {
     resize: none;
     width: 80vw;
@@ -72,8 +87,8 @@ $medium-color: #78787f;
     font-size: 30px;
   }
 
-  .error {
-    background-color: #664242FF;
+  .info {
+    background-color: #579ca7;
   }
 }
 

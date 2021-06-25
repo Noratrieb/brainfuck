@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useRef, useState} from 'react';
 import Interpreter from "../brainfuck/Interpreter";
 
 const MAX_TABLE_COLUMNS = 20;
@@ -35,7 +35,7 @@ const RunDisplay = ({interpreter}: RunDisplayProps) => {
                 <tbody>
                 <tr>
                     {
-                        arrayWithIndex.map((n) => <td className="cell" key={n}>{interpreter.array[n]}</td>)
+                        arrayWithIndex.map((n) => <MemoryCell key={n} index={n} interpreter={interpreter}/>)
                     }
                 </tr>
                 <tr>
@@ -49,5 +49,49 @@ const RunDisplay = ({interpreter}: RunDisplayProps) => {
         </div>
     );
 };
+
+const MemoryCell = ({index, interpreter}: { index: number, interpreter: Interpreter }) => {
+    const [isEditing, setIsEditing] = useState(false);
+    const [input, setInput] = useState(interpreter.array[index] + "");
+
+    const inputField = useRef<HTMLInputElement>(null);
+
+    const saveAndQuit = () => {
+        interpreter.array[index] = +(input);
+        setIsEditing(false);
+    }
+
+    const click = () => {
+        setIsEditing(true);
+        inputField.current?.select();
+    }
+
+    const keyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        console.log("key", e.key);
+        if (e.key === "Escape") {
+            setIsEditing(false);
+        } else if (e.key === "Enter") {
+            saveAndQuit();
+        }
+    }
+
+    return (
+        <td onClick={click} className="cell">
+            {
+                isEditing ?
+                    <input onKeyDown={keyDown}
+                           className="array-set-value-field"
+                           ref={inputField}
+                           onChange={e => setInput(e.target.value)}
+                           value={input}
+                           onBlur={saveAndQuit}
+                           autoFocus
+                    />
+                    :
+                    interpreter.array[index]
+            }
+        </td>
+    );
+}
 
 export default RunDisplay;

@@ -10,7 +10,7 @@ function App() {
     const [running, setRunning] = useState(false);
 
     const outHandler = useCallback((char: number) => {
-        setOut(out => out + String.fromCharCode(char))
+        setOut(oldOut => oldOut + String.fromCharCode(char))
     }, []);
 
     const runHandler = (run: boolean) => {
@@ -21,7 +21,6 @@ function App() {
     }
 
     const inputHandler = (code: string, options: CodeOptions) => setInput([code, options]);
-
     return (
         <div className="App-header">
             {

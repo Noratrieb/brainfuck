@@ -1,7 +1,10 @@
 import React, {useState} from 'react';
+import presets from "../presets.json";
 
 export interface CodeOptions {
-    minify?: boolean
+    minify?: boolean,
+    directStart?: boolean,
+    enableBreakpoints?: boolean
 }
 
 interface CodeInputProps {
@@ -15,14 +18,22 @@ const CodeInput = ({code, setInput}: CodeInputProps) => {
     const [codeOptions, setCodeOptions] = useState<CodeOptions>({});
 
 
-    const setStart = () => {
-        setInput(
-            "++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++.",
-            codeOptions);
+    const setPreset = (name: keyof typeof presets) => () => {
+        setInput(presets[name], codeOptions);
     }
 
     const changeMinify = (e: React.ChangeEvent<HTMLInputElement>) => {
         setCodeOptions(old => ({...old, minify: e.target.checked}))
+        setInput(code, codeOptions);
+    }
+
+    const changeStart = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setCodeOptions(old => ({...old, directStart: e.target.checked}))
+        setInput(code, codeOptions);
+    }
+
+    const changeBreakpoint = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setCodeOptions(old => ({...old, enableBreakpoints: e.target.checked}))
         setInput(code, codeOptions);
     }
 
@@ -34,14 +45,35 @@ const CodeInput = ({code, setInput}: CodeInputProps) => {
                     <label htmlFor="bf-input-fontsize-range">Font Size</label>
                     <input type="range" id="bf-input-fontsize-range" onChange={v => setFontSize(+v.target.value)}/>
                 </span>
-                    <input type="checkbox" checked={codeOptions.minify} id="input-options-minify" onChange={changeMinify}/>
+                    <span>
+                    <input type="checkbox" checked={codeOptions.minify} id="input-options-minify"
+                           onChange={changeMinify}/>
                     <label htmlFor="input-options-minify">Minify Code</label>
+                    </span>
+                    <span>
+                    <input type="checkbox" checked={codeOptions.directStart} id="input-options-directstart"
+                           onChange={changeStart}/>
+                    <label htmlFor="input-options-directstart">Start Directly</label>
+                    </span>
+                    <span>
+                    <input type="checkbox" checked={codeOptions.enableBreakpoints} id="input-options-enableBreakpoints"
+                           onChange={changeBreakpoint}/>
+                    <label htmlFor="input-options-enableBreakpoints">Breakpoints (•)</label>
+                    </span>
                 </div>
                 <textarea value={code} onChange={e => setInput(e.target.value, codeOptions)} style={{fontSize}}
                           className="code-input"
                           placeholder="Input your code here..."/>
                 <div>
-                    <button onClick={setStart}>Set Hello World</button>
+                    <div>Presets</div>
+                    <div>
+                        <button onClick={setPreset("helloworld")}>Hello World</button>
+                        <button onClick={setPreset("hanoi")}>Towers of Hanoi</button>
+                        <button onClick={setPreset("quine")}>Quine</button>
+                        <button onClick={setPreset("gameoflife")}>Game Of Life</button>
+                        <button onClick={setPreset("benchmark")}>Benchmark</button>
+                        <button onClick={setPreset("fizzbuzz")}>Fizzbuzz</button>
+                    </div>
                 </div>
             </div>
         </div>

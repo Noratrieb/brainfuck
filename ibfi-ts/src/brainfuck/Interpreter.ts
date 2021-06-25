@@ -12,15 +12,17 @@ export default class Interpreter {
 
     private readonly _inHandler: InHandler;
     private readonly _outHandler: OutHandler;
-    private readonly _errorHandler: ErrorHandler;
 
-    constructor(input: [string, CodeOptions], outHandler: OutHandler, inHandler: InHandler, errorHandler: ErrorHandler) {
+    private readonly _options: CodeOptions;
+
+    constructor(input: [string, CodeOptions], outHandler: OutHandler, inHandler: InHandler) {
         const buf = new ArrayBuffer(32000);
         this._array = new Uint8Array(buf);
         this._pointer = 0;
 
+        this._options = input[1];
         if (input[1].minify) {
-            this._code = minify(input[0])
+            this._code = this.minify(input[0])
         } else {
             this._code = input[0];
         }
@@ -28,7 +30,6 @@ export default class Interpreter {
         this._programCounter = 0;
         this._inHandler = inHandler;
         this._outHandler = outHandler;
-        this._errorHandler = errorHandler;
     }
 
     public next() {
@@ -44,8 +45,7 @@ export default class Interpreter {
                 break;
             case '<':
                 if (this._pointer === 0) {
-                    this._errorHandler("Cannot wrap left");
-                    break;
+                    throw new Error("Cannot wrap left");
                 }
                 this._pointer--;
                 break;
@@ -53,45 +53,66 @@ export default class Interpreter {
                 this._outHandler(this.value);
                 break;
             case ',':
-                try {
-                    this._array[this._pointer] = this._inHandler();
-                } catch {
-                    this._programCounter--;
-                    this._errorHandler("Could not read input, trying again next time.")
-                }
+                this.input();
                 break;
             case '[':
-                if (this.value === 0) {
-                    let level = 0;
-                    while (this.lastInstruction !== ']' || level > -1) {
-                        this._programCounter++;
-                        if (this.lastInstruction === '[') level++;
-                        else if (this.lastInstruction === ']') level--;
-                    }
-                }
+                this.loopForwards();
                 break;
             case ']':
-                if (this.value !== 0) {
-                    let level = 0;
-                    while (this.lastInstruction !== '[' || level > -1) {
-                        this._programCounter--;
-                        if (this.lastInstruction === '[') level--;
-                        else if (this.lastInstruction === ']') level++;
-                    }
+                this.loopBackwards();
+                break;
+            case '•':
+                if (this._options.enableBreakpoints) {
+                    throw new Error("Breakpoint reached");
                 }
                 break;
             case undefined:
                 this._pointer = this._code.length;
-                console.warn("reached end");
                 break;
-            default: {
+            default:
+                break;
+        }
+    }
+
+    private loopForwards() {
+        if (this.value === 0) {
+            let level = 0;
+            while (this.lastInstruction !== ']' || level > -1) {
+                this._programCounter++;
+                if (this._programCounter > this._code.length) {
+                    throw new Error("Reached end of code while searching ']'");
+                }
+                if (this.lastInstruction === '[') level++;
+                else if (this.lastInstruction === ']') level--;
             }
         }
-        console.log(`char: ${this.code[this.programCounter - 1]}  pointer: ${this.pointer} value: ${this.array[this.pointer]}`)
+    }
+
+    private loopBackwards() {
+        if (this.value !== 0) {
+            let level = 0;
+            while (this.lastInstruction !== '[' || level > -1) {
+                this._programCounter--;
+                if (this._programCounter < 0) {
+                    throw new Error("Reached start of code while searching '['");
+                }
+                if (this.lastInstruction === '[') level--;
+                else if (this.lastInstruction === ']') level++;
+            }
+        }
+    }
+
+
+    private input() {
+        try {
+            this._array[this._pointer] = this._inHandler();
+        } catch {
+            this._programCounter--;
+        }
     }
 
     public prev() {
-
+        // -
     }
 
     get reachedEnd(): boolean {
@@ -121,11 +142,18 @@ export default class Interpreter {
     get programCounter(): number {
         return this._programCounter;
     }
+
+    private minify(code: string): string {
+        const CHARS = ['+', '-', '<', '>', '.', ',', '[', ']'];
+        if (this._options.enableBreakpoints) {
+            CHARS.push('•');
+        }
+
+        return code.split("")
+            .filter(c => CHARS.includes(c))
+            .join("");
+    }
 }
 
-const CHARS = ['+', '-', '<', '>', '.', ',', '[', ']'];
-const minify = (code: string): string =>
-    code.split("")
-    .filter(c => CHARS.includes(c))
-    .join("");
+
 
