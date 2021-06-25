@@ -4,6 +4,7 @@ import presets from "../presets.json";
 export interface CodeOptions {
     minify?: boolean,
     directStart?: boolean,
+    startSuperSpeed?: boolean,
     enableBreakpoints?: boolean
     asciiView?: boolean
 }
@@ -26,7 +27,7 @@ const CodeInput = ({input: [code, options], setInput}: CodeInputProps) => {
 
     return (
         <div className="bf-input">
-            <div>
+            <div className="code-options-wrapper">
                 <div>
                     <label htmlFor="bf-input-fontsize-range">Font Size</label>
                     <input type="range" id="bf-input-fontsize-range" onChange={v => setFontSize(+v.target.value)}/>
@@ -34,6 +35,8 @@ const CodeInput = ({input: [code, options], setInput}: CodeInputProps) => {
 
                 <CodeOption displayName="Minify Code" name="minify" options={options} onChange={changeHandler}/>
                 <CodeOption displayName="Start Directly" name="directStart" options={options}
+                            onChange={changeHandler}/>
+                <CodeOption displayName="Start in blocking mode" name="startSuperSpeed" options={options}
                             onChange={changeHandler}/>
                 <CodeOption displayName="Breakpoints (•)" name="enableBreakpoints" options={options}
                             onChange={changeHandler}/>

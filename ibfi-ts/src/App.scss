@@ -34,6 +34,10 @@ $medium-color: #78787f;
     height: 400px;
     font-size: 100px;
   }
+
+  .code-options-wrapper > * {
+    margin: 10px;
+  }
 }
 
 .code-display-wrapper {
@@ -67,12 +71,18 @@ $medium-color: #78787f;
   }
 }
 
+.run-button {
+  height: 50px;
+  width: 200px;
+
+}
+
 .bf-run {
   margin: 20px;
 
-  button {
-    height: 50px;
-    width: 200px;
+
+  .speed-control-wrapper > * {
+    margin: 10px;
   }
 
   .small-speed-button {

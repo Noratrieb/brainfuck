@@ -1,10 +1,11 @@
-import './App.scss';
-import CodeInput, {CodeOptions} from "./components/CodeInput";
-import ProgramOutput from "./components/ProgramOutput";
+import '../App.scss';
+import CodeInput, {CodeOptions} from "./CodeInput";
+import ProgramOutput from "./ProgramOutput";
 import React, {useCallback, useState} from "react";
-import Runner from "./components/Runner";
+import Runner from "./Runner";
 
 export const OptionContext = React.createContext<CodeOptions>({});
+
 
 function App() {
     const [out, setOut] = useState("");

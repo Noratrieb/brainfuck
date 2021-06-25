@@ -1,6 +1,6 @@
 import React, {useContext, useRef, useState} from 'react';
 import Interpreter from "../brainfuck/Interpreter";
-import {OptionContext} from "../App";
+import {OptionContext} from "./App";
 
 const MAX_TABLE_COLUMNS = 20;
 

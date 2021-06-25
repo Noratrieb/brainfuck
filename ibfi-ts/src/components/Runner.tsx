@@ -2,12 +2,13 @@ import React, {useCallback, useContext, useEffect, useRef, useState} from 'react
 import Interpreter from "../brainfuck/Interpreter";
 import CodeDisplay from "./CodeDisplay";
 import RunDisplay from "./RunDisplay";
-import {OptionContext} from "../App";
+import {OptionContext} from "./App";
+
 
 interface RunInfoProps {
-    code: string,
+    running: boolean,
     setRunning: (running: boolean) => void,
-    running: boolean
+    code: string,
     outHandler: (char: number) => void,
 }
 
@@ -41,7 +42,11 @@ const Runner = ({setRunning, running, outHandler, code}: RunInfoProps) => {
 
     const startHandler = useCallback(() => {
         if (options.directStart) {
-            setSpeed(100);
+            if (options.startSuperSpeed) {
+                setSpeed(-1);
+            } else {
+                setSpeed(100);
+            }
         } else {
             setSpeed(0);
         }
@@ -72,20 +77,35 @@ const Runner = ({setRunning, running, outHandler, code}: RunInfoProps) => {
         rerender();
     }, [interpreter, startTime]);
 
+    const runBlocking = useCallback(() => {
+        try {
+            while (speed === -1 && !interpreter?.reachedEnd) {
+                interpreter?.next();
+            }
+            setSpeed(0);
+            setInfo(`Finished Execution. Took ${(Date.now() - startTime) / 1000}s`)
+        } catch (e) {
+            setInfo(e.message);
+            setSpeed(0);
+        }
+    }, [speed, interpreter, startTime]);
+
+
     useEffect(() => {
         if (running) {
             if (speed === 0) {
                 return;
             }
 
-            const interval = setInterval(() => {
-                nextHandler();
-            }, 1000 / (speed * 10));
-
-            return () => clearInterval(interval);
+            if (speed > 0) {
+                const interval = setInterval(() => {
+                    nextHandler();
+                }, 1000 / (speed * 10));
+                return () => clearInterval(interval);
+            }
+            runBlocking();
         }
-    }, [running, nextHandler, speed]);
-
+    }, [runBlocking, running, nextHandler, speed]);
 
     return (
         <div className="bf-run">
@@ -96,9 +116,9 @@ const Runner = ({setRunning, running, outHandler, code}: RunInfoProps) => {
                 </>
             }
             <div>
-                {running && <button onClick={stopHandler}>Back</button>}
-                <button onClick={startHandler}>{running ? "Restart" : "Start"}</button>
-                {running && <button onClick={nextHandler}>Next</button>}
+                {running && <button className="run-button" onClick={stopHandler}>Back</button>}
+                <button className="run-button" onClick={startHandler}>{running ? "Restart" : "Start"}</button>
+                {running && <button className="run-button" onClick={nextHandler}>Next</button>}
             </div>
             {
                 running && interpreter &&
@@ -126,7 +146,7 @@ interface SpeedControlProps {
 const SpeedControl = ({speed, setSpeed}: SpeedControlProps) => {
 
     return (
-        <div>
+        <div className="speed-control-wrapper">
             <label htmlFor="run-info-speed-range">Speed</label>
             <input type="range" id="run-info-speed-range" value={speed}
                    onChange={e => setSpeed(+e.target.value)}/>
@@ -138,6 +158,10 @@ const SpeedControl = ({speed, setSpeed}: SpeedControlProps) => {
                         className="small-speed-button">0</button>
                 <button onClick={() => setSpeed(s => s === 100 ? 100 : s + 1)}
                         className="small-speed-button">+</button>
+            </span>
+            <span>
+                <label>Superspeed Mode (blocking)</label>
+                <input id="superspeed-mode-check" type="checkbox" checked={speed === -1} onChange={() => setSpeed(-1)}/>
             </span>
         </div>
     )

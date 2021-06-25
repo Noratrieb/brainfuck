@@ -1,5 +1,3 @@
 /target
 .idea
 # brainfuck testing code, get your own
-*.b
-*.bf
