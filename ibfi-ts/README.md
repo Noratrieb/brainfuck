@@ -19,8 +19,9 @@ stopping it at any point in your program to see what went wrong.
 * error messages
 * seeing ASCII characters in memory
 * manual code input
+* fast excecution mode (no debugging info)
 
 ### Future features
-* fast excecution mode (no debugging info)
+* none-blocking fast excecution mode
 * better speed control
 * (limited) backstepping
