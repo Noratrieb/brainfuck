@@ -1,5 +1,6 @@
-import React, {useRef, useState} from 'react';
+import React, {useContext, useRef, useState} from 'react';
 import Interpreter from "../brainfuck/Interpreter";
+import {OptionContext} from "../App";
 
 const MAX_TABLE_COLUMNS = 20;
 
@@ -8,6 +9,7 @@ interface RunDisplayProps {
 }
 
 const RunDisplay = ({interpreter}: RunDisplayProps) => {
+    const options = useContext(OptionContext);
 
     const index = interpreter.pointer;
 
@@ -38,6 +40,14 @@ const RunDisplay = ({interpreter}: RunDisplayProps) => {
                         arrayWithIndex.map((n) => <MemoryCell key={n} index={n} interpreter={interpreter}/>)
                     }
                 </tr>
+                {
+                    options.asciiView &&
+                    <tr>
+                        {
+                            arrayWithIndex.map((n) => <MemoryCell key={n} index={n} interpreter={interpreter} ascii/>)
+                        }
+                    </tr>
+                }
                 <tr>
                     {
                         arrayWithIndex.map((n) => <td className="pointer"
@@ -50,7 +60,13 @@ const RunDisplay = ({interpreter}: RunDisplayProps) => {
     );
 };
 
-const MemoryCell = ({index, interpreter}: { index: number, interpreter: Interpreter }) => {
+interface MemoryCellProps {
+    index: number,
+    interpreter: Interpreter,
+    ascii?: boolean,
+}
+
+const MemoryCell = ({index, interpreter, ascii}: MemoryCellProps) => {
     const [isEditing, setIsEditing] = useState(false);
     const [input, setInput] = useState(interpreter.array[index] + "");
 
@@ -75,10 +91,15 @@ const MemoryCell = ({index, interpreter}: { index: number, interpreter: Interpre
         }
     }
 
+    const content = ascii ?
+        String.fromCharCode(interpreter.array[index])
+        :
+        interpreter.array[index];
+
     return (
         <td onClick={click} className="cell">
             {
-                isEditing ?
+                isEditing && !ascii ?
                     <input onKeyDown={keyDown}
                            className="array-set-value-field"
                            ref={inputField}
@@ -88,7 +109,7 @@ const MemoryCell = ({index, interpreter}: { index: number, interpreter: Interpre
                            autoFocus
                     />
                     :
-                    interpreter.array[index]
+                    content
             }
         </td>
     );

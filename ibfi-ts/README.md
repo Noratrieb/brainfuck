@@ -17,9 +17,10 @@ stopping it at any point in your program to see what went wrong.
 * manual stepping
 * breakpoints
 * error messages
-
+* seeing ASCII characters in memory
+* manual code input
 
 ### Future features
-* seeing ASCII characters in memory
 * fast excecution mode (no debugging info)
 * better speed control
+* (limited) backstepping

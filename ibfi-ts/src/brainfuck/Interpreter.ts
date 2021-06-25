@@ -2,7 +2,6 @@ import {CodeOptions} from "../components/CodeInput";
 
 type InHandler = (() => number);
 type OutHandler = ((char: number) => void);
-type ErrorHandler = ((msg: string) => void);
 
 export default class Interpreter {
     private readonly _array: Uint8Array;
@@ -33,7 +32,11 @@ export default class Interpreter {
     }
 
     public next() {
-        switch (this._code[this._programCounter++]) {
+        this.execute(this._code[this._programCounter++]);
+    }
+
+    public execute(char: string) {
+        switch (char) {
             case '+':
                 this._array[this._pointer]++;
                 break;
@@ -67,7 +70,7 @@ export default class Interpreter {
                 }
                 break;
             case undefined:
-                this._pointer = this._code.length;
+                this._programCounter = this._code.length;
                 break;
             default:
                 break;
@@ -112,7 +115,7 @@ export default class Interpreter {
     }
 
     public prev() {
-        // -
+        // - will add some day
     }
 
     get reachedEnd(): boolean {
