@@ -9,7 +9,7 @@ edition = "2018"
 [dependencies]
 
 [profile.release]
-debug=true
+debug = true
 
 [profile.dev]
 opt-level = 3
