@@ -14,6 +14,14 @@ interface CodeInputProps {
     input: [string, CodeOptions]
 }
 
+const codeOptions: Array<[string, keyof CodeOptions]> = [
+    ["Minify Code", "minify"],
+    ["Start directly", "directStart"],
+    ["Start in blocking mode", "startSuperSpeed"],
+    ["Breakpoints (•)", "enableBreakpoints"],
+    ["Show ASCII in memory", "asciiView"]
+]
+
 const CodeInput = ({input: [code, options], setInput}: CodeInputProps) => {
     const [fontSize, setFontSize] = useState(40);
 
@@ -33,15 +41,9 @@ const CodeInput = ({input: [code, options], setInput}: CodeInputProps) => {
                     <input type="range" id="bf-input-fontsize-range" onChange={v => setFontSize(+v.target.value)}/>
                 </div>
 
-                <CodeOption displayName="Minify Code" name="minify" options={options} onChange={changeHandler}/>
-                <CodeOption displayName="Start Directly" name="directStart" options={options}
-                            onChange={changeHandler}/>
-                <CodeOption displayName="Start in blocking mode" name="startSuperSpeed" options={options}
-                            onChange={changeHandler}/>
-                <CodeOption displayName="Breakpoints (•)" name="enableBreakpoints" options={options}
-                            onChange={changeHandler}/>
-                <CodeOption displayName="Show ASCII in memory" name="asciiView" options={options}
-                            onChange={changeHandler}/>
+                {codeOptions.map(([display, id]) =>
+                    <CodeOption displayName={display} name={id} options={options} onChange={changeHandler}/>
+                )}
 
             </div>
             <textarea value={code} onChange={e => setInput(e.target.value, options)} style={{fontSize}}
@@ -69,14 +71,13 @@ interface CodeOptionProps {
     onChange: (name: keyof CodeOptions) => (event: ChangeEvent<HTMLInputElement>) => void,
 }
 
-const CodeOption = ({displayName, name, options, onChange}: CodeOptionProps) => {
-    return (
-        <span>
+const CodeOption = ({displayName, name, options, onChange}: CodeOptionProps) => (
+    <span>
         <input type="checkbox" checked={options[name]} id={`input-options-${name}`}
                onChange={onChange(name)}/>
         <label htmlFor={`input-options-${name}`}>{displayName}</label>
-        </span>
-    );
-}
+    </span>
+);
+
 
 export default CodeInput;

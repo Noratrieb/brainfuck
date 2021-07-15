@@ -105,7 +105,6 @@ export default class Interpreter {
         }
     }
 
-
     private input() {
         try {
             this._array[this._pointer] = this._inHandler();

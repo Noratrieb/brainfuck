@@ -6,7 +6,6 @@ import Runner from "./Runner";
 
 export const OptionContext = React.createContext<CodeOptions>({});
 
-
 function App() {
     const [out, setOut] = useState("");
     const [input, setInput] = useState<[string, CodeOptions]>(["", {}]);
@@ -22,7 +21,6 @@ function App() {
             setOut("");
         }
     }
-
 
     const inputHandler = (code: string, options: CodeOptions) => setInput([code, options]);
     return (

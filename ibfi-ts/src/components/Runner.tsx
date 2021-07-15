@@ -19,13 +19,11 @@ const Runner = ({setRunning, running, outHandler, code}: RunInfoProps) => {
     const [startTime, setStartTime] = useState(0);
 
     const [, setRerenderNumber] = useState(0);
-    const options = useContext(OptionContext);
-
-
     const rerender = () => setRerenderNumber(n => n + 1);
 
-    const inputArea = useRef<HTMLTextAreaElement>(null);
+    const options = useContext(OptionContext);
 
+    const inputArea = useRef<HTMLTextAreaElement>(null);
 
     const inputHandler = () => {
         if (!inputArea.current) {
