@@ -1,0 +1,128 @@
+$main-color: #282c34;
+$main-color-brighter: #323942;
+$light-color: ghostwhite;
+$medium-color: #78787f;
+
+.App {
+  text-align: center;
+}
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+.App-header {
+  background-color: $main-color;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: $light-color;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+.bf-input {
+  .code-input {
+    resize: none;
+    width: 80vw;
+    height: 400px;
+    font-size: 100px;
+  }
+
+  .code-options-wrapper > * {
+    margin: 10px;
+  }
+}
+
+.code-display-wrapper {
+  max-width: 80vw;
+  font-family: monospace;
+
+  span {
+    word-wrap: break-word;
+  }
+}
+
+.memory-display-table {
+  $border: 1px solid $light-color;
+
+  th, .cell {
+    border: $border;
+  }
+
+  th, td {
+    min-width: 60px;
+    text-align: center;
+  }
+
+  .array-set-value-field {
+    min-width: 50px;
+    max-width: 100px;
+    height: 40px;
+    color: $light-color;
+    font-size: 30px;
+    background-color: $main-color-brighter;
+  }
+}
+
+.run-button {
+  height: 50px;
+  width: 200px;
+
+}
+
+.bf-run {
+  margin: 20px;
+
+
+  .speed-control-wrapper > * {
+    margin: 10px;
+  }
+
+  .small-speed-button {
+    height: 40px;
+    width: 40px;
+  }
+
+  .program-input-area {
+    resize: none;
+    width: 80vw;
+    height: 50px;
+    font-size: 30px;
+  }
+
+  .info {
+    background-color: #579ca7;
+  }
+}
+
+.bf-output {
+  .output-area {
+    resize: none;
+    width: 80vw;
+    height: 200px;
+    font-size: 20px;
+  }
+}
+
+textarea {
+  background-color: $main-color-brighter;
+  color: $light-color;
+}
+
+button {
+  background-color: $medium-color;
+  font-size: 20px;
+  border: 1px solid $main-color;
+
+  &:hover {
+    cursor: pointer;
+    background-color: $light-color;
+  }
+}
