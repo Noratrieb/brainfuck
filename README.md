@@ -14,4 +14,4 @@ Finished:
 WIP:
 
 To-Do:
-- Haskell
+- Idris
