@@ -1,8 +1,8 @@
 {
   "files": {
     "main.css": "/brainfuck/static/css/main.5240792f.chunk.css",
-    "main.js": "/brainfuck/static/js/main.06301232.chunk.js",
-    "main.js.map": "/brainfuck/static/js/main.06301232.chunk.js.map",
+    "main.js": "/brainfuck/static/js/main.a77e171c.chunk.js",
+    "main.js.map": "/brainfuck/static/js/main.a77e171c.chunk.js.map",
     "runtime-main.js": "/brainfuck/static/js/runtime-main.b1cc60e8.js",
     "runtime-main.js.map": "/brainfuck/static/js/runtime-main.b1cc60e8.js.map",
     "static/js/2.305014b7.chunk.js": "/brainfuck/static/js/2.305014b7.chunk.js",
@@ -15,6 +15,6 @@
     "static/js/runtime-main.b1cc60e8.js",
     "static/js/2.305014b7.chunk.js",
     "static/css/main.5240792f.chunk.css",
-    "static/js/main.06301232.chunk.js"
+    "static/js/main.a77e171c.chunk.js"
   ]
 }
