@@ -9,4 +9,5 @@ edition = "2021"
 bumpalo = { version = "3.9.1", features = ["allocator_api"] }
 
 [dev-dependencies]
+criterion = "0.3.5"
 insta = "1.14.0"

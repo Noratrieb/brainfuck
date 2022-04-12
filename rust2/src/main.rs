@@ -4,9 +4,7 @@
 use bumpalo::Bump;
 use std::{env, fs, process};
 
-mod ir_interpreter;
-mod opts;
-mod parse;
+use brainfuck::{ir_interpreter, opts, parse};
 
 fn main() {
     let Some(path) = env::args().nth(1) else {
