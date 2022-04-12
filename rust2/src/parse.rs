@@ -1,6 +1,6 @@
 use bumpalo::Bump;
 
-type Instrs<'ast> = Vec<Instr<'ast>, &'ast Bump>;
+pub type Instrs<'ast> = Vec<Instr<'ast>, &'ast Bump>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Instr<'ast> {
@@ -43,7 +43,7 @@ where
     Ok(instrs)
 }
 
-pub fn parse_loop<'ast, I>(
+fn parse_loop<'ast, I>(
     alloc: &'ast Bump,
     src: &mut I,
     depth: u16,
