@@ -1,0 +1,20 @@
+---
+source: src/parse.rs
+assertion_line: 93
+expression: instrs
+---
+Ok(
+    [
+        Right,
+        Add,
+        Left,
+        Add,
+        Add,
+        Loop(
+            [
+                Sub,
+            ],
+        ),
+        Out,
+    ],
+)
