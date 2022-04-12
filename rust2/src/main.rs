@@ -4,7 +4,8 @@
 use bumpalo::Bump;
 use std::{env, fs, process};
 
-mod naive_interpreter;
+mod ir_interpreter;
+mod opts;
 mod parse;
 
 fn main() {
@@ -25,5 +26,12 @@ fn main() {
         process::exit(1);
     });
 
-    naive_interpreter::run(&parsed);
+    let ir_alloc = Bump::new();
+
+    let optimized_ir = opts::optimize(&ir_alloc, &parsed);
+
+    drop(parsed);
+    drop(ast_alloc);
+
+    ir_interpreter::run(&optimized_ir);
 }

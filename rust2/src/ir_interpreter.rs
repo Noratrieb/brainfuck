@@ -1,4 +1,4 @@
-use crate::parse::Instr;
+use crate::opts::IrInstr;
 use std::io::{Read, Write};
 use std::num::Wrapping;
 
@@ -6,49 +6,53 @@ const MEM_SIZE: usize = 32_000;
 
 type Memory = [Wrapping<u8>; MEM_SIZE];
 
-pub fn run(instrs: &[Instr<'_>]) {
+pub fn run(instrs: &[IrInstr<'_>]) {
     let mut mem = [Wrapping(0u8); MEM_SIZE];
     let mut ptr = 0;
 
     execute(&mut mem, &mut ptr, instrs);
 }
 
-fn execute(mem: &mut Memory, ptr: &mut usize, instrs: &[Instr<'_>]) {
+fn execute(mem: &mut Memory, ptr: &mut usize, instrs: &[IrInstr<'_>]) {
     for instr in instrs {
         match instr {
-            Instr::Add => {
-                mem[*ptr] += 1;
+            IrInstr::Add(n) => {
+                mem[*ptr] += n;
             }
-            Instr::Sub => {
-                mem[*ptr] -= 1;
+            IrInstr::Sub(n) => {
+                mem[*ptr] -= n;
             }
-            Instr::Right => {
-                *ptr += 1;
+            IrInstr::Right(n) => {
+                *ptr += n;
                 if *ptr >= MEM_SIZE {
                     *ptr = 0;
                 }
             }
-            Instr::Left => {
-                if *ptr == 0 {
-                    *ptr = MEM_SIZE - 1;
+            IrInstr::Left(n) => {
+                if *ptr < *n {
+                    let diff = *n - *ptr;
+                    *ptr = MEM_SIZE - 1 - diff;
                 } else {
-                    *ptr -= 1;
+                    *ptr -= n;
                 }
             }
-            Instr::Out => {
+            IrInstr::Out => {
                 let char = mem[*ptr].0 as char;
-                print!("{char}",);
+                print!("{char}");
                 std::io::stdout().flush().unwrap();
             }
-            Instr::In => {
+            IrInstr::In => {
                 let mut buf = [0; 1];
                 std::io::stdin().read_exact(&mut buf).unwrap();
                 mem[*ptr] = Wrapping(buf[0]);
             }
-            Instr::Loop(body) => {
+            IrInstr::Loop(body) => {
                 while mem[*ptr] != Wrapping(0) {
                     execute(mem, ptr, body);
                 }
+            }
+            IrInstr::SetNull => {
+                mem[*ptr] = Wrapping(0);
             }
         }
     }
