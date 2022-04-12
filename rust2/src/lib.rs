@@ -3,20 +3,26 @@
 
 use crate::parse::ParseError;
 use bumpalo::Bump;
+use std::fmt::Display;
 use std::io::{Read, Write};
 
 pub mod ir_interpreter;
 pub mod opts;
 pub mod parse;
 
-pub fn run<R, W>(bytes: impl Iterator<Item = u8>, stdout: W, stdin: R) -> Result<(), ParseError>
+pub enum UseProfile {
+    Yes,
+    No,
+}
+
+pub fn run<R, W>(str: &str, stdout: W, stdin: R, use_profile: UseProfile) -> Result<(), ParseError>
 where
     W: Write,
     R: Read,
 {
     let ast_alloc = Bump::new();
 
-    let parsed = parse::parse(&ast_alloc, bytes.enumerate())?;
+    let parsed = parse::parse(&ast_alloc, str.bytes().enumerate())?;
 
     let ir_alloc = Bump::new();
 
@@ -25,20 +31,49 @@ where
     drop(parsed);
     drop(ast_alloc);
 
-    ir_interpreter::run(&optimized_ir, stdout, stdin);
+    match use_profile {
+        UseProfile::Yes => {
+            let profile = ir_interpreter::run_profile(&optimized_ir, stdout, stdin);
+            let max = profile.iter().max().copied().unwrap_or(0);
+            println!("---------------- Profile ----------------");
+            for (i, char) in str.bytes().enumerate() {
+                print!("{}", color_by_profile(char as char, profile[i], max));
+            }
+        }
+        UseProfile::No => {
+            ir_interpreter::run(&optimized_ir, stdout, stdin);
+        }
+    }
 
     Ok(())
 }
 
+fn color_by_profile(char: char, value: u64, max: u64) -> impl Display {
+    use owo_colors::OwoColorize;
+
+    let percentage = ((max as f64) / (value as f64) * 100.0) as u64;
+
+    match percentage {
+        0..=1 => char.default_color().to_string(),
+        2..=10 => char.green().to_string(),
+        11..=30 => char.yellow().to_string(),
+        31..=90 => char.red().to_string(),
+        91..=100 => char.bright_red().to_string(),
+        _ => char.default_color().to_string(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use crate::UseProfile;
+
     #[test]
     fn fizzbuzz() {
         let str = include_str!("fizzbuzz.bf");
         let mut stdout = Vec::new();
         let stdin = [];
 
-        super::run(str.bytes(), &mut stdout, stdin.as_slice()).unwrap();
+        super::run(str, &mut stdout, stdin.as_slice(), UseProfile::No).unwrap();
 
         insta::assert_debug_snapshot!(String::from_utf8(stdout));
     }

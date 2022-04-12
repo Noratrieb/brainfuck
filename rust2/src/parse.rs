@@ -2,8 +2,8 @@ use bumpalo::Bump;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Span {
-    pub start: u32,
-    pub len: u32,
+    start: u32,
+    len: u32,
 }
 
 impl Span {
@@ -26,6 +26,14 @@ impl Span {
             start: self.start,
             len: (other.start + other.len) - self.len,
         }
+    }
+
+    pub fn start(&self) -> usize {
+        self.start.try_into().unwrap()
+    }
+
+    pub fn len(&self) -> usize {
+        self.len.try_into().unwrap()
     }
 }
 

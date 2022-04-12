@@ -1,6 +1,7 @@
 #![feature(allocator_api, let_else)]
 #![warn(rust_2018_idioms)]
 
+use brainfuck::UseProfile;
 use std::{env, fs, io, process};
 
 fn main() {
@@ -19,7 +20,7 @@ fn main() {
     let stdin = io::stdin();
     let stdin = stdin.lock();
 
-    brainfuck::run(file.bytes(), stdout, stdin).unwrap_or_else(|_| {
+    brainfuck::run(&file, stdout, stdin, UseProfile::Yes).unwrap_or_else(|_| {
         eprintln!("error: Failed to parse brainfuck code");
         process::exit(1);
     });

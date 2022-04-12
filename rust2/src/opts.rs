@@ -1,13 +1,13 @@
 use crate::parse::{Instr, Span};
 use bumpalo::Bump;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Ir<'ir> {
     pub stmts: Vec<Stmt<'ir>, &'ir Bump>,
     pub spans: Vec<Span, &'ir Bump>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Stmt<'ir> {
     Add(u8),
     Sub(u8),
@@ -36,16 +36,19 @@ fn ast_to_ir<'ir>(alloc: &'ir Bump, ast: &[(Instr<'_>, Span)]) -> Ir<'ir> {
     };
 
     let mut last = &first.0;
-    let mut last_span = first.1;
+    let mut start_span = first.1;
     let mut count = 1;
+    let mut end_span = start_span;
 
     for (next, next_span) in instr_iter {
         match last {
             Instr::Add | Instr::Sub | Instr::Right | Instr::Left if last == next => {
                 count += 1;
+                end_span = *next_span;
                 continue;
             }
             _ => {
+                end_span = *next_span;
                 let new_last = match last {
                     Instr::Add => Stmt::Add(count),
                     Instr::Sub => Stmt::Sub(count),
@@ -56,9 +59,9 @@ fn ast_to_ir<'ir>(alloc: &'ir Bump, ast: &[(Instr<'_>, Span)]) -> Ir<'ir> {
                     Instr::Loop(body) => Stmt::Loop(ast_to_ir(alloc, body)),
                 };
                 stmts.push(new_last);
-                spans.push(last_span.until(*next_span));
+                spans.push(start_span.until(end_span));
                 last = next;
-                last_span = *next_span;
+                start_span = *next_span;
                 count = 1;
             }
         }
@@ -74,7 +77,7 @@ fn ast_to_ir<'ir>(alloc: &'ir Bump, ast: &[(Instr<'_>, Span)]) -> Ir<'ir> {
         Instr::Loop(body) => Stmt::Loop(ast_to_ir(alloc, &body)),
     };
     stmts.push(new_last);
-    spans.push(last_span);
+    spans.push(start_span.until(end_span));
 
     Ir { stmts, spans }
 }
