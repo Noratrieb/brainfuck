@@ -2,7 +2,7 @@
 #![warn(rust_2018_idioms)]
 
 use bumpalo::Bump;
-use std::{env, fs, process};
+use std::{env, fs, io, process};
 
 use brainfuck::{ir_interpreter, opts, parse};
 
@@ -31,5 +31,10 @@ fn main() {
     drop(parsed);
     drop(ast_alloc);
 
-    ir_interpreter::run(&optimized_ir);
+    let stdout = io::stdout();
+    let stdout = stdout.lock();
+    let stdin = io::stdin();
+    let stdin = stdin.lock();
+
+    ir_interpreter::run(&optimized_ir, stdout, stdin);
 }

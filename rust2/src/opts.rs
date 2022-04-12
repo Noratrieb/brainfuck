@@ -72,8 +72,9 @@ fn pass_find_set_null(ir: &mut Ir<'_>) {
     for stmt in ir {
         if let Stmt::Loop(body) = stmt {
             if let [Stmt::Sub(_)] = body.as_slice() {
-                println!("REPLACE");
                 *stmt = Stmt::SetNull;
+            } else {
+                pass_find_set_null(body);
             }
         }
     }

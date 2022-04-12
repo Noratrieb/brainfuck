@@ -6,14 +6,27 @@ const MEM_SIZE: usize = 32_000;
 
 type Memory = [Wrapping<u8>; MEM_SIZE];
 
-pub fn run(instrs: &[Stmt<'_>]) {
+pub fn run<W, R>(instrs: &[Stmt<'_>], mut stdout: W, mut stdin: R)
+where
+    W: Write,
+    R: Read,
+{
     let mut mem = [Wrapping(0u8); MEM_SIZE];
     let mut ptr = 0;
 
-    execute(&mut mem, &mut ptr, instrs);
+    execute(&mut mem, &mut ptr, instrs, &mut stdout, &mut stdin);
 }
 
-fn execute(mem: &mut Memory, ptr: &mut usize, instrs: &[Stmt<'_>]) {
+fn execute<W, R>(
+    mem: &mut Memory,
+    ptr: &mut usize,
+    instrs: &[Stmt<'_>],
+    stdout: &mut W,
+    stdin: &mut R,
+) where
+    W: Write,
+    R: Read,
+{
     for instr in instrs {
         match instr {
             Stmt::Add(n) => {
@@ -38,17 +51,17 @@ fn execute(mem: &mut Memory, ptr: &mut usize, instrs: &[Stmt<'_>]) {
             }
             Stmt::Out => {
                 let char = mem[*ptr].0 as char;
-                print!("{char}");
-                std::io::stdout().flush().unwrap();
+                write!(stdout, "{char}").unwrap();
+                stdout.flush().unwrap();
             }
             Stmt::In => {
                 let mut buf = [0; 1];
-                std::io::stdin().read_exact(&mut buf).unwrap();
+                stdin.read_exact(&mut buf).unwrap();
                 mem[*ptr] = Wrapping(buf[0]);
             }
             Stmt::Loop(body) => {
                 while mem[*ptr] != Wrapping(0) {
-                    execute(mem, ptr, body);
+                    execute(mem, ptr, body, stdout, stdin);
                 }
             }
             Stmt::SetNull => {
