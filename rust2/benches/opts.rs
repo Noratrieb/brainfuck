@@ -1,8 +1,6 @@
 use bumpalo::Bump;
-use criterion::{criterion_group, criterion_main, Criterion};
-use std::fs;
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use std::io::{Read, Write};
-use std::path::PathBuf;
 
 struct MockReadWrite;
 
@@ -23,32 +21,27 @@ impl Write for MockReadWrite {
     }
 }
 
-fn get_bf(path_from_bench: impl AsRef<str>) -> String {
-    let file = PathBuf::from(file!())
-        .parent()
-        .unwrap()
-        .join(path_from_bench.as_ref());
-
-    fs::read_to_string(file).unwrap()
-}
-
 fn run_bf_bench(bf: &str) {
     let bump = Bump::new();
-    let parsed = brainfuck::parse::parse(&bump, bf.bytes()).unwrap();
+    let parsed = brainfuck::parse::parse(&bump, bf.bytes().enumerate()).unwrap();
     let optimized = brainfuck::opts::optimize(&bump, &parsed);
     brainfuck::ir_interpreter::run(&optimized, MockReadWrite, MockReadWrite);
 }
 
 fn optimized(c: &mut Criterion) {
-    let fizzbuzz = get_bf("fizzbuzz.bf");
-    let hello_world = get_bf("hello.bf");
-    let bench = get_bf("bench.bf");
-    let loopremove = get_bf("loopremove.bf");
+    let fizzbuzz = include_str!("fizzbuzz.bf");
+    let hello_world = include_str!("hello.bf");
+    let bench = include_str!("bench.bf");
+    let loopremove = include_str!("loopremove.bf");
 
-    c.bench_function("fizzbuzz", |b| b.iter(|| run_bf_bench(&fizzbuzz)));
-    c.bench_function("hello_world", |b| b.iter(|| run_bf_bench(&hello_world)));
-    c.bench_function("bench", |b| b.iter(|| run_bf_bench(&bench)));
-    c.bench_function("loopremove", |b| b.iter(|| run_bf_bench(&loopremove)));
+    c.bench_function("fizzbuzz", |b| b.iter(|| run_bf_bench(black_box(fizzbuzz))));
+    c.bench_function("hello_world", |b| {
+        b.iter(|| run_bf_bench(black_box(hello_world)))
+    });
+    c.bench_function("bench", |b| b.iter(|| run_bf_bench(black_box(bench))));
+    c.bench_function("loopremove", |b| {
+        b.iter(|| run_bf_bench(black_box(loopremove)))
+    });
 }
 
 criterion_group!(benches, optimized);

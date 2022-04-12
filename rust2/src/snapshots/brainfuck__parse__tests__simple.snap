@@ -1,20 +1,68 @@
 ---
 source: src/parse.rs
-assertion_line: 93
+assertion_line: 123
 expression: instrs
 ---
 Ok(
     [
-        Right,
-        Add,
-        Left,
-        Add,
-        Add,
-        Loop(
-            [
-                Sub,
-            ],
+        (
+            Right,
+            Span {
+                start: 0,
+                len: 1,
+            },
         ),
-        Out,
+        (
+            Add,
+            Span {
+                start: 1,
+                len: 1,
+            },
+        ),
+        (
+            Left,
+            Span {
+                start: 2,
+                len: 1,
+            },
+        ),
+        (
+            Add,
+            Span {
+                start: 3,
+                len: 1,
+            },
+        ),
+        (
+            Add,
+            Span {
+                start: 4,
+                len: 1,
+            },
+        ),
+        (
+            Loop(
+                [
+                    (
+                        Sub,
+                        Span {
+                            start: 6,
+                            len: 1,
+                        },
+                    ),
+                ],
+            ),
+            Span {
+                start: 5,
+                len: 2,
+            },
+        ),
+        (
+            Out,
+            Span {
+                start: 8,
+                len: 1,
+            },
+        ),
     ],
 )

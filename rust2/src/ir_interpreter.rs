@@ -1,4 +1,4 @@
-use crate::opts::Stmt;
+use crate::opts::{Ir, Stmt};
 use std::io::{Read, Write};
 use std::num::Wrapping;
 
@@ -6,7 +6,7 @@ const MEM_SIZE: usize = 32_000;
 
 type Memory = [Wrapping<u8>; MEM_SIZE];
 
-pub fn run<W, R>(instrs: &[Stmt<'_>], mut stdout: W, mut stdin: R)
+pub fn run<W, R>(instrs: &Ir<'_>, mut stdout: W, mut stdin: R)
 where
     W: Write,
     R: Read,
@@ -14,7 +14,7 @@ where
     let mut mem = [Wrapping(0u8); MEM_SIZE];
     let mut ptr = 0;
 
-    execute(&mut mem, &mut ptr, instrs, &mut stdout, &mut stdin);
+    execute(&mut mem, &mut ptr, &instrs.stmts, &mut stdout, &mut stdin);
 }
 
 fn execute<W, R>(
@@ -61,7 +61,7 @@ fn execute<W, R>(
             }
             Stmt::Loop(body) => {
                 while mem[*ptr] != Wrapping(0) {
-                    execute(mem, ptr, body, stdout, stdin);
+                    execute(mem, ptr, &body.stmts, stdout, stdin);
                 }
             }
             Stmt::SetNull => {

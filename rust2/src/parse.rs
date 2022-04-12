@@ -1,6 +1,35 @@
 use bumpalo::Bump;
 
-pub type Instrs<'ast> = Vec<Instr<'ast>, &'ast Bump>;
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Span {
+    pub start: u32,
+    pub len: u32,
+}
+
+impl Span {
+    fn single(idx: usize) -> Self {
+        Self {
+            start: idx.try_into().unwrap(),
+            len: 1,
+        }
+    }
+
+    fn start_end(start: usize, end: usize) -> Span {
+        Self {
+            start: start.try_into().unwrap(),
+            len: (end - start).try_into().unwrap(),
+        }
+    }
+
+    pub fn until(&self, other: Self) -> Self {
+        Self {
+            start: self.start,
+            len: (other.start + other.len) - self.len,
+        }
+    }
+}
+
+pub type Instrs<'ast> = Vec<(Instr<'ast>, Span), &'ast Bump>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Instr<'ast> {
@@ -18,23 +47,23 @@ pub struct ParseError;
 
 pub fn parse<I>(alloc: &Bump, mut src: I) -> Result<Instrs<'_>, ParseError>
 where
-    I: Iterator<Item = u8>,
+    I: Iterator<Item = (usize, u8)>,
 {
     let mut instrs = Vec::new_in(alloc);
 
     loop {
         match src.next() {
-            Some(b'+') => instrs.push(Instr::Add),
-            Some(b'-') => instrs.push(Instr::Sub),
-            Some(b'>') => instrs.push(Instr::Right),
-            Some(b'<') => instrs.push(Instr::Left),
-            Some(b'.') => instrs.push(Instr::Out),
-            Some(b',') => instrs.push(Instr::In),
-            Some(b'[') => {
-                let loop_instrs = parse_loop(alloc, &mut src, 0)?;
-                instrs.push(Instr::Loop(loop_instrs));
+            Some((idx, b'+')) => instrs.push((Instr::Add, Span::single(idx))),
+            Some((idx, b'-')) => instrs.push((Instr::Sub, Span::single(idx))),
+            Some((idx, b'>')) => instrs.push((Instr::Right, Span::single(idx))),
+            Some((idx, b'<')) => instrs.push((Instr::Left, Span::single(idx))),
+            Some((idx, b'.')) => instrs.push((Instr::Out, Span::single(idx))),
+            Some((idx, b',')) => instrs.push((Instr::In, Span::single(idx))),
+            Some((idx, b'[')) => {
+                let (loop_instrs, span) = parse_loop(alloc, &mut src, 0, idx)?;
+                instrs.push((Instr::Loop(loop_instrs), span));
             }
-            Some(b']') => return Err(ParseError),
+            Some((_, b']')) => return Err(ParseError),
             Some(_) => {} // comment
             None => break,
         }
@@ -47,9 +76,10 @@ fn parse_loop<'ast, I>(
     alloc: &'ast Bump,
     src: &mut I,
     depth: u16,
-) -> Result<Instrs<'ast>, ParseError>
+    start_idx: usize,
+) -> Result<(Instrs<'ast>, Span), ParseError>
 where
-    I: Iterator<Item = u8>,
+    I: Iterator<Item = (usize, u8)>,
 {
     const MAX_DEPTH: u16 = 1000;
 
@@ -59,25 +89,25 @@ where
 
     let mut instrs = Vec::new_in(alloc);
 
-    loop {
+    let end_idx = loop {
         match src.next() {
-            Some(b'+') => instrs.push(Instr::Add),
-            Some(b'-') => instrs.push(Instr::Sub),
-            Some(b'>') => instrs.push(Instr::Right),
-            Some(b'<') => instrs.push(Instr::Left),
-            Some(b'.') => instrs.push(Instr::Out),
-            Some(b',') => instrs.push(Instr::In),
-            Some(b'[') => {
-                let loop_instrs = parse_loop(alloc, src, depth + 1)?;
-                instrs.push(Instr::Loop(loop_instrs));
+            Some((idx, b'+')) => instrs.push((Instr::Add, Span::single(idx))),
+            Some((idx, b'-')) => instrs.push((Instr::Sub, Span::single(idx))),
+            Some((idx, b'>')) => instrs.push((Instr::Right, Span::single(idx))),
+            Some((idx, b'<')) => instrs.push((Instr::Left, Span::single(idx))),
+            Some((idx, b'.')) => instrs.push((Instr::Out, Span::single(idx))),
+            Some((idx, b',')) => instrs.push((Instr::In, Span::single(idx))),
+            Some((idx, b'[')) => {
+                let (loop_instrs, span) = parse_loop(alloc, src, depth + 1, idx)?;
+                instrs.push((Instr::Loop(loop_instrs), span));
             }
-            Some(b']') => break,
+            Some((idx, b']')) => break idx,
             Some(_) => {} // comment
             None => return Err(ParseError),
         }
-    }
+    };
 
-    Ok(instrs)
+    Ok((instrs, Span::start_end(start_idx, end_idx)))
 }
 
 #[cfg(test)]
@@ -89,7 +119,7 @@ mod tests {
         let alloc = Bump::new();
 
         let bf = ">+<++[-].";
-        let instrs = super::parse(&alloc, bf.bytes());
+        let instrs = super::parse(&alloc, bf.bytes().enumerate());
         insta::assert_debug_snapshot!(instrs);
     }
 
@@ -98,7 +128,7 @@ mod tests {
         let alloc = Bump::new();
 
         let bf = "+[-[-[-]]+>>>]";
-        let instrs = super::parse(&alloc, bf.bytes());
+        let instrs = super::parse(&alloc, bf.bytes().enumerate());
         insta::assert_debug_snapshot!(instrs);
     }
 }
