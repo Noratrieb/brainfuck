@@ -1,12 +1,14 @@
 #![feature(allocator_api, let_else)]
 #![warn(rust_2018_idioms)]
+#![allow(dead_code)]
 
 use crate::parse::ParseError;
 use bumpalo::Bump;
 use std::fmt::Display;
 use std::io::{Read, Write};
 
-pub mod ir_interpreter;
+mod codegen;
+mod codegen_interpreter;
 pub mod opts;
 pub mod parse;
 
@@ -31,17 +33,25 @@ where
     drop(parsed);
     drop(ast_alloc);
 
+    let cg_alloc = Bump::new();
+
+    let code = codegen::generate(&cg_alloc, &optimized_ir);
+
+    drop(optimized_ir);
+    drop(ir_alloc);
+
     match use_profile {
         UseProfile::Yes => {
-            let profile = ir_interpreter::run_profile(&optimized_ir, stdout, stdin);
-            let max = profile.iter().max().copied().unwrap_or(0);
-            println!("---------------- Profile ----------------");
-            for (i, char) in str.bytes().enumerate() {
-                print!("{}", color_by_profile(char as char, profile[i], max));
-            }
+            // let profile = ir_interpreter::run_profile(&optimized_ir, stdout, stdin);
+            // let max = profile.iter().max().copied().unwrap_or(0);
+            // println!("---------------- Profile ----------------");
+            // for (i, char) in str.bytes().enumerate() {
+            //     print!("{}", color_by_profile(char as char, profile[i], max));
+            // }
+            println!("no supported lol");
         }
         UseProfile::No => {
-            ir_interpreter::run(&optimized_ir, stdout, stdin);
+            codegen_interpreter::run(&code, stdout, stdin);
         }
     }
 

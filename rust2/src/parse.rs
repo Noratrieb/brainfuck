@@ -1,6 +1,6 @@
 use bumpalo::Bump;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Span {
     start: u32,
     len: u32,

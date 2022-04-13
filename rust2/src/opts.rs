@@ -4,11 +4,25 @@ use bumpalo::Bump;
 #[derive(Debug, Clone)]
 pub struct Ir<'ir> {
     pub stmts: Vec<Stmt<'ir>, &'ir Bump>,
-    pub spans: Vec<Span, &'ir Bump>,
 }
 
 #[derive(Debug, Clone)]
-pub enum Stmt<'ir> {
+pub struct Stmt<'ir> {
+    pub kind: StmtKind<'ir>,
+    pub span: Span,
+}
+
+impl<'ir> Stmt<'ir> {
+    fn lol(kind: StmtKind<'ir>) -> Stmt<'ir> {
+        Self {
+            kind,
+            span: Span::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum StmtKind<'ir> {
     Add(u8),
     Sub(u8),
     Right(usize),
@@ -32,7 +46,7 @@ fn ast_to_ir<'ir>(alloc: &'ir Bump, ast: &[(Instr<'_>, Span)]) -> Ir<'ir> {
     let mut instr_iter = ast.iter();
 
     let Some(first) = instr_iter.next() else {
-        return Ir { stmts, spans: Vec::new_in(alloc) };
+        return Ir { stmts };
     };
 
     let mut last = &first.0;
@@ -50,13 +64,13 @@ fn ast_to_ir<'ir>(alloc: &'ir Bump, ast: &[(Instr<'_>, Span)]) -> Ir<'ir> {
             _ => {
                 end_span = *next_span;
                 let new_last = match last {
-                    Instr::Add => Stmt::Add(count),
-                    Instr::Sub => Stmt::Sub(count),
-                    Instr::Right => Stmt::Right(count.into()),
-                    Instr::Left => Stmt::Left(count.into()),
-                    Instr::Out => Stmt::Out,
-                    Instr::In => Stmt::In,
-                    Instr::Loop(body) => Stmt::Loop(ast_to_ir(alloc, body)),
+                    Instr::Add => Stmt::lol(StmtKind::Add(count)),
+                    Instr::Sub => Stmt::lol(StmtKind::Sub(count)),
+                    Instr::Right => Stmt::lol(StmtKind::Right(count.into())),
+                    Instr::Left => Stmt::lol(StmtKind::Left(count.into())),
+                    Instr::Out => Stmt::lol(StmtKind::Out),
+                    Instr::In => Stmt::lol(StmtKind::In),
+                    Instr::Loop(body) => Stmt::lol(StmtKind::Loop(ast_to_ir(alloc, body))),
                 };
                 stmts.push(new_last);
                 spans.push(start_span.until(end_span));
@@ -68,25 +82,33 @@ fn ast_to_ir<'ir>(alloc: &'ir Bump, ast: &[(Instr<'_>, Span)]) -> Ir<'ir> {
     }
 
     let new_last = match last {
-        Instr::Add => Stmt::Add(count),
-        Instr::Sub => Stmt::Sub(count),
-        Instr::Right => Stmt::Right(count.into()),
-        Instr::Left => Stmt::Left(count.into()),
-        Instr::Out => Stmt::Out,
-        Instr::In => Stmt::In,
-        Instr::Loop(body) => Stmt::Loop(ast_to_ir(alloc, &body)),
+        Instr::Add => Stmt::lol(StmtKind::Add(count)),
+        Instr::Sub => Stmt::lol(StmtKind::Sub(count)),
+        Instr::Right => Stmt::lol(StmtKind::Right(count.into())),
+        Instr::Left => Stmt::lol(StmtKind::Left(count.into())),
+        Instr::Out => Stmt::lol(StmtKind::Out),
+        Instr::In => Stmt::lol(StmtKind::In),
+        Instr::Loop(body) => Stmt::lol(StmtKind::Loop(ast_to_ir(alloc, &body))),
     };
     stmts.push(new_last);
     spans.push(start_span.until(end_span));
 
-    Ir { stmts, spans }
+    Ir { stmts }
 }
 
 fn pass_find_set_null(ir: &mut Ir<'_>) {
     for stmt in &mut ir.stmts {
-        if let Stmt::Loop(body) = stmt {
-            if let [Stmt::Sub(_)] = body.stmts.as_slice() {
-                *stmt = Stmt::SetNull;
+        if let Stmt {
+            kind: StmtKind::Loop(body),
+            ..
+        } = stmt
+        {
+            if let [Stmt {
+                kind: StmtKind::Sub(_),
+                ..
+            }] = body.stmts.as_slice()
+            {
+                *stmt = Stmt::lol(StmtKind::SetNull);
             } else {
                 pass_find_set_null(body);
             }
