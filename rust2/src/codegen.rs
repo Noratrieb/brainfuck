@@ -19,6 +19,7 @@
 
 use crate::opts::{Ir, Stmt as IrStmt, StmtKind};
 use crate::parse::Span;
+use crate::BumpVec;
 use bumpalo::Bump;
 
 #[derive(Debug, Clone, Copy)]
@@ -39,8 +40,8 @@ const _: [(); 8] = [(); std::mem::size_of::<Stmt>()];
 
 #[derive(Debug, Clone)]
 pub struct Code<'c> {
-    stmts: Vec<Stmt, &'c Bump>,
-    debug: Vec<Span, &'c Bump>,
+    stmts: BumpVec<'c, Stmt>,
+    debug: BumpVec<'c, Span>,
 }
 
 impl Code<'_> {

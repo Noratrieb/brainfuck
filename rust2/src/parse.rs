@@ -1,4 +1,5 @@
 use bumpalo::Bump;
+use std::cmp;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Span {
@@ -21,11 +22,20 @@ impl Span {
         }
     }
 
+    #[must_use]
     pub fn until(&self, other: Self) -> Self {
         Self {
             start: self.start,
             len: (other.start + other.len) - self.len,
         }
+    }
+
+    #[must_use]
+    pub fn merge(&self, other: Self) -> Self {
+        Self::start_end(
+            cmp::min(self.start(), other.start()),
+            cmp::max(self.end(), other.end()),
+        )
     }
 
     pub fn start(&self) -> usize {
@@ -34,6 +44,10 @@ impl Span {
 
     pub fn len(&self) -> usize {
         self.len.try_into().unwrap()
+    }
+
+    pub fn end(&self) -> usize {
+        self.start() + self.len() - 1
     }
 }
 

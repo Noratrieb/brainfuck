@@ -13,6 +13,9 @@ owo-colors = "3.3.0"
 criterion = "0.3.5"
 insta = "1.14.0"
 
+[profile.release]
+debug = true
+
 [[bench]]
 name = "opts"
 harness = false

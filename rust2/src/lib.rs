@@ -13,6 +13,8 @@ pub mod codegen_interpreter;
 pub mod opts;
 pub mod parse;
 
+type BumpVec<'a, T> = Vec<T, &'a Bump>;
+
 pub enum UseProfile {
     Yes,
     No,
