@@ -25,15 +25,17 @@ use bumpalo::Bump;
 pub enum Stmt {
     Add(u8),
     Sub(u8),
-    Right(usize),
-    Left(usize),
+    Right(u32),
+    Left(u32),
     Out,
     In,
     SetNull,
-    JmpIfZero(usize),
-    JmpIfNonZero(usize),
+    JmpIfZero(u32),
+    JmpIfNonZero(u32),
     End,
 }
+
+const _: [(); 8] = [(); std::mem::size_of::<Stmt>()];
 
 #[derive(Debug, Clone)]
 pub struct Code<'c> {
@@ -76,8 +78,8 @@ fn ir_to_stmt<'c>(code: &mut Code<'c>, ir_stmt: &IrStmt<'_>) {
     let stmt = match &ir_stmt.kind {
         StmtKind::Add(n) => Stmt::Add(*n),
         StmtKind::Sub(n) => Stmt::Sub(*n),
-        StmtKind::Right(n) => Stmt::Right(*n),
-        StmtKind::Left(n) => Stmt::Left(*n),
+        StmtKind::Right(n) => Stmt::Right(u32::try_from(*n).unwrap()),
+        StmtKind::Left(n) => Stmt::Left(u32::try_from(*n).unwrap()),
         StmtKind::Out => Stmt::Out,
         StmtKind::In => Stmt::In,
         StmtKind::SetNull => Stmt::SetNull,
@@ -90,14 +92,15 @@ fn ir_to_stmt<'c>(code: &mut Code<'c>, ir_stmt: &IrStmt<'_>) {
             generate_stmts(code, &instr.stmts);
             // if the loop body is empty, we jmp to ourselves, which is an infinite loop - as expected
             let first_loop_body_idx = skip_jmp_idx + 1;
-            code.stmts.push(Stmt::JmpIfNonZero(first_loop_body_idx));
+            code.stmts
+                .push(Stmt::JmpIfNonZero(first_loop_body_idx.try_into().unwrap()));
             code.debug.push(ir_stmt.span);
 
             // there will always at least be an `End` instruction after the loop
             let after_loop_idx = code.stmts.len();
 
             // fix the placeholder with the actual index
-            code.stmts[skip_jmp_idx] = Stmt::JmpIfZero(after_loop_idx);
+            code.stmts[skip_jmp_idx] = Stmt::JmpIfZero(after_loop_idx.try_into().unwrap());
 
             return;
         }
