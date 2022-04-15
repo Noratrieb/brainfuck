@@ -154,8 +154,16 @@ fn pass_find_set_null(ir: &mut Ir<'_>) {
 /// pass that replaces `SetNull Add(5)` with `SetN(5)`
 fn pass_set_n(ir: &mut Ir<'_>) {
     let stmts = &mut ir.stmts;
-    let mut i = 0;
-    while i < stmts.len() - 1 {
+    for i in 0..stmts.len() {
+        let a = &mut stmts[i];
+        if let StmtKind::Loop(body) = &mut a.kind {
+            pass_set_n(body);
+        }
+
+        if i >= stmts.len() - 1 {
+            break; // we are the last element
+        }
+
         let a = &stmts[i];
         if let StmtKind::SetNull = a.kind() {
             let b = &stmts[i + 1];
@@ -163,7 +171,6 @@ fn pass_set_n(ir: &mut Ir<'_>) {
                 StmtKind::Add(n) => StmtKind::SetN(*n),
                 StmtKind::Sub(n) => StmtKind::SetN(0u8.wrapping_sub(*n)),
                 _ => {
-                    i += 1;
                     continue;
                 }
             };
@@ -171,6 +178,5 @@ fn pass_set_n(ir: &mut Ir<'_>) {
             stmts.remove(i + 1);
             stmts[i] = Stmt::new(new, span);
         }
-        i += 1;
     }
 }
