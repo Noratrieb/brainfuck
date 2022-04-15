@@ -13,6 +13,9 @@
 //!
 //! technically, the `JumpIfNotZero` would be an unconditional Jmp to the `JmpIfZero`, but that's
 //! a needless indirection.
+//!
+//! this module must not produce out of bounds jumps and always put the `End` instruction at the
+//! end
 
 use crate::opts::{Ir, Stmt as IrStmt, StmtKind};
 use crate::parse::Span;
@@ -34,8 +37,18 @@ pub enum Stmt {
 
 #[derive(Debug, Clone)]
 pub struct Code<'c> {
-    pub stmts: Vec<Stmt, &'c Bump>,
-    pub debug: Vec<Span, &'c Bump>,
+    stmts: Vec<Stmt, &'c Bump>,
+    debug: Vec<Span, &'c Bump>,
+}
+
+impl Code<'_> {
+    pub fn stmts(&self) -> &[Stmt] {
+        &self.stmts
+    }
+
+    pub fn debug(&self) -> &[Span] {
+        &self.debug
+    }
 }
 
 pub fn generate<'c>(alloc: &'c Bump, ir: &Ir<'_>) -> Code<'c> {
@@ -70,7 +83,7 @@ fn ir_to_stmt<'c>(code: &mut Code<'c>, ir_stmt: &IrStmt<'_>) {
         StmtKind::SetNull => Stmt::SetNull,
         StmtKind::Loop(instr) => {
             let skip_jmp_idx = code.stmts.len();
-            code.stmts.push(Stmt::JmpIfZero(usize::MAX)); // placeholder
+            code.stmts.push(Stmt::JmpIfZero(0)); // placeholder
             code.debug.push(ir_stmt.span);
 
             // compile the loop body now

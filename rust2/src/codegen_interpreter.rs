@@ -30,13 +30,22 @@ where
         mem: [Wrapping(0u8); MEM_SIZE],
     };
 
-    interpreter.execute();
+    // SAFETY: `Code` can only be produced by the `crate::codegen` module, which is trusted to not
+    // produce out of bounds jumps and put the `End` at the end
+    unsafe {
+        interpreter.execute();
+    }
 }
 
 impl<'c, W: Write, R: Read> Interpreter<'c, W, R> {
-    fn execute(&mut self) {
+    unsafe fn execute(&mut self) {
+        let stmts = self.code.stmts();
         loop {
-            let instr = self.code.stmts[self.ip];
+            // SAFETY: If the code ends with an `End` and there are no out of bounds jumps,
+            // `self.ip` will never be out of bounds
+            // Removing this bounds check speeds up execution by about 40%
+            debug_assert!(self.ip < stmts.len());
+            let instr = unsafe { *stmts.get_unchecked(self.ip) };
             self.ip += 1;
             match instr {
                 Stmt::Add(n) => {
