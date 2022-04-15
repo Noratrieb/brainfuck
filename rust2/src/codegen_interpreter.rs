@@ -87,6 +87,9 @@ where
                 Stmt::SetNull => {
                     *self.elem_mut() = Wrapping(0);
                 }
+                Stmt::SetN(n) => {
+                    *self.elem_mut() = Wrapping(n);
+                }
                 Stmt::JmpIfZero(pos) => {
                     if self.elem() == 0 {
                         self.ip = pos as usize;

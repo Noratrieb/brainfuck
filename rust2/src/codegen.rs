@@ -31,6 +31,7 @@ pub enum Stmt {
     Out,
     In,
     SetNull,
+    SetN(u8),
     JmpIfZero(u32),
     JmpIfNonZero(u32),
     End,
@@ -84,6 +85,7 @@ fn ir_to_stmt<'c>(code: &mut Code<'c>, ir_stmt: &IrStmt<'_>) {
         StmtKind::Out => Stmt::Out,
         StmtKind::In => Stmt::In,
         StmtKind::SetNull => Stmt::SetNull,
+        StmtKind::SetN(n) => Stmt::SetN(*n),
         StmtKind::Loop(instr) => {
             let skip_jmp_idx = code.stmts.len();
             code.stmts.push(Stmt::JmpIfZero(0)); // placeholder

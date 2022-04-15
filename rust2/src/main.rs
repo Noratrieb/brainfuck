@@ -20,7 +20,12 @@ fn main() {
     let stdin = io::stdin();
     let stdin = stdin.lock();
 
-    brainfuck::run(&file, stdout, stdin, UseProfile::Yes).unwrap_or_else(|_| {
+    let profile = env::args()
+        .any(|a| a == "--profile")
+        .then(|| UseProfile::Yes)
+        .unwrap_or(UseProfile::No);
+
+    brainfuck::run(&file, stdout, stdin, profile).unwrap_or_else(|_| {
         eprintln!("error: Failed to parse brainfuck code");
         process::exit(1);
     });

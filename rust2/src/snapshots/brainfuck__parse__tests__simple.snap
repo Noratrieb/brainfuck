@@ -1,6 +1,6 @@
 ---
 source: src/parse.rs
-assertion_line: 123
+assertion_line: 155
 expression: instrs
 ---
 Ok(
@@ -54,7 +54,7 @@ Ok(
             ),
             Span {
                 start: 5,
-                len: 2,
+                len: 3,
             },
         ),
         (
