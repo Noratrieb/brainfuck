@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 bumpalo = { version = "3.9.1", features = ["allocator_api"] }
+clap = { version = "3.1.9", features = ["derive"] }
 owo-colors = "3.3.0"
 
 [dev-dependencies]

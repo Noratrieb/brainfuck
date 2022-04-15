@@ -21,6 +21,7 @@ use crate::opts::{Ir, Stmt as IrStmt, StmtKind};
 use crate::parse::Span;
 use crate::BumpVec;
 use bumpalo::Bump;
+use std::fmt::{Debug, Formatter};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Stmt {
@@ -39,10 +40,16 @@ pub enum Stmt {
 
 const _: [(); 8] = [(); std::mem::size_of::<Stmt>()];
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Code<'c> {
     stmts: BumpVec<'c, Stmt>,
     debug: BumpVec<'c, Span>,
+}
+
+impl Debug for Code<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        self.stmts.fmt(f)
+    }
 }
 
 impl Code<'_> {

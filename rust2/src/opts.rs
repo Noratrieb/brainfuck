@@ -1,13 +1,14 @@
 use crate::parse::{Instr, Span};
 use crate::BumpVec;
 use bumpalo::Bump;
+use std::fmt::{Debug, Formatter};
 
 #[derive(Debug, Clone)]
 pub struct Ir<'ir> {
     pub stmts: BumpVec<'ir, Stmt<'ir>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Stmt<'ir> {
     pub kind: StmtKind<'ir>,
     pub span: Span,
@@ -20,6 +21,12 @@ impl<'ir> Stmt<'ir> {
 
     fn kind(&self) -> &StmtKind<'ir> {
         &self.kind
+    }
+}
+
+impl Debug for Stmt<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("Stmt").field(&self.kind).finish()
     }
 }
 

@@ -7,11 +7,42 @@ use bumpalo::Bump;
 use owo_colors::OwoColorize;
 use std::fmt::Display;
 use std::io::{Read, Write};
+use std::path::PathBuf;
+use std::str::FromStr;
 
 pub mod codegen;
 pub mod codegen_interpreter;
 pub mod opts;
 pub mod parse;
+
+#[derive(clap::Parser, Default)]
+#[clap(author, about)]
+pub struct Args {
+    #[clap(short, long)]
+    pub profile: bool,
+    #[clap(long)]
+    pub dump: Option<DumpKind>,
+    pub file: PathBuf,
+}
+
+pub enum DumpKind {
+    Ast,
+    Ir,
+    Code,
+}
+
+impl FromStr for DumpKind {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "ast" => Ok(Self::Ast),
+            "ir" => Ok(Self::Ir),
+            "code" => Ok(Self::Code),
+            other => Err(format!("Invalid IR level: '{other}'")),
+        }
+    }
+}
 
 type BumpVec<'a, T> = Vec<T, &'a Bump>;
 
@@ -20,7 +51,7 @@ pub enum UseProfile {
     No,
 }
 
-pub fn run<R, W>(src: &str, stdout: W, stdin: R, use_profile: UseProfile) -> Result<(), ParseError>
+pub fn run<R, W>(src: &str, stdout: W, stdin: R, config: &Args) -> Result<(), ParseError>
 where
     W: Write,
     R: Read,
@@ -29,9 +60,19 @@ where
 
     let parsed = parse::parse(&ast_alloc, src.bytes().enumerate())?;
 
+    if let Some(DumpKind::Ast) = config.dump {
+        println!("{parsed:#?}");
+        return Ok(());
+    }
+
     let ir_alloc = Bump::new();
 
     let optimized_ir = opts::optimize(&ir_alloc, &parsed);
+
+    if let Some(DumpKind::Ir) = config.dump {
+        println!("{optimized_ir:#?}");
+        return Ok(());
+    }
 
     drop(parsed);
     drop(ast_alloc);
@@ -40,11 +81,16 @@ where
 
     let code = codegen::generate(&cg_alloc, &optimized_ir);
 
+    if let Some(DumpKind::Code) = config.dump {
+        println!("{code:#?}");
+        return Ok(());
+    }
+
     drop(optimized_ir);
     drop(ir_alloc);
 
-    match use_profile {
-        UseProfile::Yes => {
+    match config.profile {
+        true => {
             let mut code_profile_count = vec![0; code.debug().len()];
 
             codegen_interpreter::run(&code, stdout, stdin, |ip| unsafe {
@@ -65,7 +111,7 @@ where
                 print!("{}", color_by_profile(char as char, value, max));
             }
         }
-        UseProfile::No => {
+        false => {
             codegen_interpreter::run(&code, stdout, stdin, |_| {});
         }
     }
@@ -90,7 +136,7 @@ fn color_by_profile(char: char, value: u64, max: u64) -> impl Display {
 
 #[cfg(test)]
 mod tests {
-    use crate::UseProfile;
+    use crate::Args;
 
     #[test]
     fn fizzbuzz() {
@@ -98,7 +144,7 @@ mod tests {
         let mut stdout = Vec::new();
         let stdin = [];
 
-        super::run(str, &mut stdout, stdin.as_slice(), UseProfile::No).unwrap();
+        super::run(str, &mut stdout, stdin.as_slice(), &Args::default()).unwrap();
 
         insta::assert_debug_snapshot!(String::from_utf8(stdout));
     }
