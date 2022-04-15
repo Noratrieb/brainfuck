@@ -37,7 +37,7 @@ impl Span {
     }
 }
 
-pub type Instrs<'ast> = Vec<(Instr<'ast>, Span), &'ast Bump>;
+pub type Ast<'ast> = Vec<(Instr<'ast>, Span), &'ast Bump>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Instr<'ast> {
@@ -47,13 +47,13 @@ pub enum Instr<'ast> {
     Left,
     Out,
     In,
-    Loop(Instrs<'ast>),
+    Loop(Ast<'ast>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseError;
 
-pub fn parse<I>(alloc: &Bump, mut src: I) -> Result<Instrs<'_>, ParseError>
+pub fn parse<I>(alloc: &Bump, mut src: I) -> Result<Ast<'_>, ParseError>
 where
     I: Iterator<Item = (usize, u8)>,
 {
@@ -85,7 +85,7 @@ fn parse_loop<'ast, I>(
     src: &mut I,
     depth: u16,
     start_idx: usize,
-) -> Result<(Instrs<'ast>, Span), ParseError>
+) -> Result<(Ast<'ast>, Span), ParseError>
 where
     I: Iterator<Item = (usize, u8)>,
 {

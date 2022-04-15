@@ -82,9 +82,6 @@ impl<'c, W: Write, R: Read> Interpreter<'c, W, R> {
                         self.ip = pos;
                     }
                 }
-                Stmt::Jmp(pos) => {
-                    self.ip = pos;
-                }
                 Stmt::End => break,
             }
         }

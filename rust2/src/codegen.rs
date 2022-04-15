@@ -5,11 +5,14 @@
 //! ```
 //! compiles down to
 //! ```text
-//! Add | Add | JmpIfZero | Out | End | Sub | JmpIfNonZero | Jmp
-//!                  |       |           ^         |          |
-//!                  +-------------------+---------|----------+
-//!                          +---------------------+
+//! Add | Add | JmpIfZero | Sub | JumpIfNotZero | Out | End
+//!                  |       ^           |         ^
+//!                  +-------|-----------|---------|
+//!                          +-----------+
 //! ```
+//!
+//! technically, the `JumpIfNotZero` would be an unconditional Jmp to the `JmpIfZero`, but that's
+//! a needless indirection.
 
 use crate::opts::{Ir, Stmt as IrStmt, StmtKind};
 use crate::parse::Span;
@@ -26,7 +29,6 @@ pub enum Stmt {
     SetNull,
     JmpIfZero(usize),
     JmpIfNonZero(usize),
-    Jmp(usize),
     End,
 }
 
@@ -36,36 +38,28 @@ pub struct Code<'c> {
     pub debug: Vec<Span, &'c Bump>,
 }
 
-struct UnlinkedCode<'u> {
-    pub stmts: Vec<Vec<Stmt, &'u Bump>, &'u Bump>,
-    pub debug: Vec<Vec<Span, &'u Bump>, &'u Bump>,
-}
-
 pub fn generate<'c>(alloc: &'c Bump, ir: &Ir<'_>) -> Code<'c> {
-    let unlinked_alloc = Bump::new();
+    let stmts = Vec::new_in(alloc);
+    let debug = Vec::new_in(alloc);
+    let mut code = Code { stmts, debug };
 
-    let stmts = Vec::new_in(&unlinked_alloc);
-    let debug = Vec::new_in(&unlinked_alloc);
-    let mut unlinked = UnlinkedCode { stmts, debug };
+    generate_stmts(&mut code, &ir.stmts);
+    code.stmts.push(Stmt::End);
+    code.debug.push(Span::default());
 
-    generate_stmts(&unlinked_alloc, &mut unlinked, &ir.stmts);
-
-    link(alloc, &unlinked)
-}
-
-fn generate_stmts<'u>(alloc: &'u Bump, code: &mut UnlinkedCode<'u>, ir: &[IrStmt<'_>]) {
-    for ir_stmt in ir {
-        ir_to_stmt(alloc, code, ir_stmt, 0);
-    }
     assert_eq!(code.stmts.len(), code.debug.len());
+
+    code
 }
 
-fn ir_to_stmt<'u>(
-    alloc: &'u Bump,
-    code: &mut UnlinkedCode<'u>,
-    ir_stmt: &IrStmt<'_>,
-    current_block: usize,
-) {
+fn generate_stmts<'c>(code: &mut Code<'c>, ir: &[IrStmt<'_>]) {
+    for ir_stmt in ir {
+        ir_to_stmt(code, ir_stmt);
+    }
+    debug_assert_eq!(code.stmts.len(), code.debug.len());
+}
+
+fn ir_to_stmt<'c>(code: &mut Code<'c>, ir_stmt: &IrStmt<'_>) {
     let stmt = match &ir_stmt.kind {
         StmtKind::Add(n) => Stmt::Add(*n),
         StmtKind::Sub(n) => Stmt::Sub(*n),
@@ -75,20 +69,27 @@ fn ir_to_stmt<'u>(
         StmtKind::In => Stmt::In,
         StmtKind::SetNull => Stmt::SetNull,
         StmtKind::Loop(instr) => {
-            let new_block = Vec::new_in(alloc);
-            let new_block_debug = Vec::new_in(alloc);
-            code.stmts.push(new_block);
-            code.stmts.push(new_block_debug);
+            let skip_jmp_idx = code.stmts.len();
+            code.stmts.push(Stmt::JmpIfZero(usize::MAX)); // placeholder
+            code.debug.push(ir_stmt.span);
 
-            let current_block = code.stmts.len() - 1;
+            // compile the loop body now
+            generate_stmts(code, &instr.stmts);
+            // if the loop body is empty, we jmp to ourselves, which is an infinite loop - as expected
+            let first_loop_body_idx = skip_jmp_idx + 1;
+            code.stmts.push(Stmt::JmpIfNonZero(first_loop_body_idx));
+            code.debug.push(ir_stmt.span);
+
+            // there will always at least be an `End` instruction after the loop
+            let after_loop_idx = code.stmts.len();
+
+            // fix the placeholder with the actual index
+            code.stmts[skip_jmp_idx] = Stmt::JmpIfZero(after_loop_idx);
+
             return;
         }
     };
 
-    code.stmts[current_block].push(stmt);
-    code.debug[current_block].push(ir_stmt.span);
-}
-
-fn link<'c>(alloc: &'c Bump, code: &UnlinkedCode<'_>) -> Code<'c> {
-    todo!()
+    code.stmts.push(stmt);
+    code.debug.push(ir_stmt.span);
 }

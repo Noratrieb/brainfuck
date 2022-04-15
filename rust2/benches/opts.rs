@@ -23,9 +23,10 @@ impl Write for MockReadWrite {
 
 fn run_bf(bf: &str) {
     let bump = Bump::new();
-    let parsed = brainfuck::parse::parse(&bump, bf.bytes().enumerate()).unwrap();
-    let optimized = brainfuck::opts::optimize(&bump, &parsed);
-    brainfuck::ir_interpreter::run(&optimized, MockReadWrite, MockReadWrite);
+    let ast = brainfuck::parse::parse(&bump, bf.bytes().enumerate()).unwrap();
+    let ir = brainfuck::opts::optimize(&bump, &ast);
+    let code = brainfuck::codegen::generate(&bump, &ir);
+    brainfuck::codegen_interpreter::run(&code, MockReadWrite, MockReadWrite);
 }
 
 fn optimized(c: &mut Criterion) {

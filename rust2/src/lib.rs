@@ -7,8 +7,8 @@ use bumpalo::Bump;
 use std::fmt::Display;
 use std::io::{Read, Write};
 
-mod codegen;
-mod codegen_interpreter;
+pub mod codegen;
+pub mod codegen_interpreter;
 pub mod opts;
 pub mod parse;
 
