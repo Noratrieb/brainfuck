@@ -156,7 +156,7 @@ fn pass_find_set_null(ir: &mut Ir<'_>) {
     }
 }
 
-/// pass that replaces `SetN(0) Add(5)` with `SetN(5)`
+/// pass that replaces `SetN(n) Add(m)` with `SetN(n + m)`
 fn pass_set_n(ir: &mut Ir<'_>) {
     let stmts = &mut ir.stmts;
     for i in 0..stmts.len() {
@@ -170,11 +170,11 @@ fn pass_set_n(ir: &mut Ir<'_>) {
         }
 
         let a = &stmts[i];
-        if let StmtKind::SetN(0) = a.kind() {
+        if let StmtKind::SetN(before) = a.kind() {
             let b = &stmts[i + 1];
             let new = match b.kind() {
-                StmtKind::Add(n) => StmtKind::SetN(*n),
-                StmtKind::Sub(n) => StmtKind::SetN(0u8.wrapping_sub(*n)),
+                StmtKind::Add(n) => StmtKind::SetN(before.wrapping_add(*n)),
+                StmtKind::Sub(n) => StmtKind::SetN(before.wrapping_sub(*n)),
                 _ => {
                     continue;
                 }
