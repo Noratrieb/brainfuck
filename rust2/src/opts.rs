@@ -77,19 +77,19 @@ fn pass_group<'ir>(alloc: &'ir Bump, ir: Ir<'ir>) -> Ir<'ir> {
             };
 
             match (&mut old.kind, next.kind) {
-                (StmtKind::Add(a), StmtKind::Add(b)) => {
+                (StmtKind::Add(a), StmtKind::Add(b)) if *a < 255 => {
                     old.span = old.span.merge(next.span);
                     *a += b;
                 }
-                (StmtKind::Sub(a), StmtKind::Sub(b)) => {
+                (StmtKind::Sub(a), StmtKind::Sub(b)) if *a < 255 => {
                     old.span = old.span.merge(next.span);
                     *a += b;
                 }
-                (StmtKind::Right(a), StmtKind::Right(b)) => {
+                (StmtKind::Right(a), StmtKind::Right(b)) if *a < 255 => {
                     old.span = old.span.merge(next.span);
                     *a += b;
                 }
-                (StmtKind::Left(a), StmtKind::Left(b)) => {
+                (StmtKind::Left(a), StmtKind::Left(b)) if *a < 255 => {
                     old.span = old.span.merge(next.span);
                     *a += b;
                 }
