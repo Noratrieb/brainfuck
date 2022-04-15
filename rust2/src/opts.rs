@@ -53,7 +53,7 @@ fn ast_to_ir<'ir>(alloc: &'ir Bump, ast: &[(Instr<'_>, Span)]) -> Ir<'ir> {
             Instr::Out => StmtKind::Out,
             Instr::In => StmtKind::In,
             Instr::Loop(body) => {
-                let ir_body = ast_to_ir(alloc, &body);
+                let ir_body = ast_to_ir(alloc, body);
                 StmtKind::Loop(ir_body)
             }
         };
@@ -72,7 +72,15 @@ fn pass_group<'ir>(alloc: &'ir Bump, ir: Ir<'ir>) -> Ir<'ir> {
         .into_iter()
         .fold(new_stmts, |mut stmts: BumpVec<'ir, Stmt<'ir>>, next| {
             let Some(old) = stmts.last_mut() else {
-                stmts.push(next);
+                if let StmtKind::Loop(body) = next.kind {
+                    let new_body = pass_group(alloc, body);
+                    stmts.push(Stmt {
+                        span: next.span,
+                        kind: StmtKind::Loop(new_body),
+                    });
+                } else {
+                    stmts.push(next);
+                }
                 return stmts;
             };
 

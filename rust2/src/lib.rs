@@ -40,6 +40,9 @@ where
 
     let code = codegen::generate(&cg_alloc, &optimized_ir);
 
+    println!("{:#?}", optimized_ir);
+    return Ok(());
+
     drop(optimized_ir);
     drop(ir_alloc);
 
