@@ -91,7 +91,7 @@ fn ir_to_stmt<'c>(code: &mut Code<'c>, ir_stmt: &IrStmt<'_>) {
         StmtKind::Left(n) => Stmt::Left(u32::try_from(*n).unwrap()),
         StmtKind::Out => Stmt::Out,
         StmtKind::In => Stmt::In,
-        StmtKind::SetNull => Stmt::SetNull,
+        StmtKind::SetN(0) => Stmt::SetNull,
         StmtKind::SetN(n) => Stmt::SetN(*n),
         StmtKind::Loop(instr) => {
             let skip_jmp_idx = code.stmts.len();

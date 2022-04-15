@@ -3,9 +3,15 @@ use crate::BumpVec;
 use bumpalo::Bump;
 use std::fmt::{Debug, Formatter};
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Ir<'ir> {
     pub stmts: BumpVec<'ir, Stmt<'ir>>,
+}
+
+impl Debug for Ir<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        self.stmts.fmt(f)
+    }
 }
 
 #[derive(Clone)]
@@ -26,7 +32,7 @@ impl<'ir> Stmt<'ir> {
 
 impl Debug for Stmt<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("Stmt").field(&self.kind).finish()
+        self.kind.fmt(f)
     }
 }
 
@@ -39,7 +45,6 @@ pub enum StmtKind<'ir> {
     Loop(Ir<'ir>),
     Out,
     In,
-    SetNull,
     SetN(u8),
 }
 
@@ -143,7 +148,7 @@ fn pass_find_set_null(ir: &mut Ir<'_>) {
                 span,
             }] = body.stmts.as_slice()
             {
-                *stmt = Stmt::new(StmtKind::SetNull, *span);
+                *stmt = Stmt::new(StmtKind::SetN(0), *span);
             } else {
                 pass_find_set_null(body);
             }
@@ -151,7 +156,7 @@ fn pass_find_set_null(ir: &mut Ir<'_>) {
     }
 }
 
-/// pass that replaces `SetNull Add(5)` with `SetN(5)`
+/// pass that replaces `SetN(0) Add(5)` with `SetN(5)`
 fn pass_set_n(ir: &mut Ir<'_>) {
     let stmts = &mut ir.stmts;
     for i in 0..stmts.len() {
@@ -165,7 +170,7 @@ fn pass_set_n(ir: &mut Ir<'_>) {
         }
 
         let a = &stmts[i];
-        if let StmtKind::SetNull = a.kind() {
+        if let StmtKind::SetN(0) = a.kind() {
             let b = &stmts[i + 1];
             let new = match b.kind() {
                 StmtKind::Add(n) => StmtKind::SetN(*n),
