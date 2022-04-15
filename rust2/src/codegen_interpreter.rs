@@ -2,15 +2,15 @@ use crate::codegen::{Code, Stmt};
 use std::io::{Read, Write};
 use std::num::Wrapping;
 
-const MEM_SIZE: u32 = 32_000;
+const MEM_SIZE: usize = 32_000;
 
-type Memory = [Wrapping<u8>; MEM_SIZE as usize];
+type Memory = [Wrapping<u8>; MEM_SIZE];
 
 // TODO maybe repr(C) to prevent field reordering?
 struct Interpreter<'c, W, R> {
     code: &'c Code<'c>,
-    ip: u32,
-    ptr: u32,
+    ip: usize,
+    ptr: usize,
     stdout: W,
     stdin: R,
     mem: Memory,
@@ -27,7 +27,7 @@ where
         ptr: 0,
         stdout,
         stdin,
-        mem: [Wrapping(0u8); MEM_SIZE as usize],
+        mem: [Wrapping(0u8); MEM_SIZE],
     };
 
     // SAFETY: `Code` can only be produced by the `crate::codegen` module, which is trusted to not
@@ -44,8 +44,8 @@ impl<'c, W: Write, R: Read> Interpreter<'c, W, R> {
             // SAFETY: If the code ends with an `End` and there are no out of bounds jumps,
             // `self.ip` will never be out of bounds
             // Removing this bounds check speeds up execution by about 40%
-            debug_assert!((self.ip as usize) < stmts.len());
-            let instr = unsafe { *stmts.get_unchecked(self.ip as usize) };
+            debug_assert!(self.ip < stmts.len());
+            let instr = unsafe { *stmts.get_unchecked(self.ip) };
             self.ip += 1;
             match instr {
                 Stmt::Add(n) => {
@@ -55,17 +55,17 @@ impl<'c, W: Write, R: Read> Interpreter<'c, W, R> {
                     *self.elem_mut() -= n;
                 }
                 Stmt::Right(n) => {
-                    self.ptr += n;
+                    self.ptr += n as usize;
                     if self.ptr >= MEM_SIZE {
                         self.ptr = 0;
                     }
                 }
                 Stmt::Left(n) => {
-                    if self.ptr < n {
-                        let diff = n - self.ptr;
+                    if self.ptr < n as usize {
+                        let diff = n as usize - self.ptr;
                         self.ptr = MEM_SIZE - 1 - diff;
                     } else {
-                        self.ptr -= n;
+                        self.ptr -= n as usize;
                     }
                 }
                 Stmt::Out => {
@@ -83,24 +83,27 @@ impl<'c, W: Write, R: Read> Interpreter<'c, W, R> {
                 }
                 Stmt::JmpIfZero(pos) => {
                     if self.elem() == 0 {
-                        self.ip = pos;
+                        self.ip = pos as usize;
                     }
                 }
                 Stmt::JmpIfNonZero(pos) => {
                     if self.elem() != 0 {
-                        self.ip = pos;
+                        self.ip = pos as usize;
                     }
                 }
                 Stmt::End => break,
             }
         }
     }
-
     fn elem_mut(&mut self) -> &mut Wrapping<u8> {
-        &mut self.mem[self.ptr as usize]
+        // SAFETY: `self.ptr` is never out of bounds
+        //debug_assert!(self.ptr < self.mem.len());
+        unsafe { self.mem.get_unchecked_mut(self.ptr) }
     }
 
     fn elem(&self) -> u8 {
-        self.mem[self.ptr as usize].0
+        // SAFETY: `self.ptr` is never out of bounds
+        //debug_assert!(self.ptr < self.mem.len());
+        unsafe { self.mem.get_unchecked(self.ptr).0 }
     }
 }
