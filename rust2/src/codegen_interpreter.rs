@@ -84,9 +84,6 @@ where
                     self.stdin.read_exact(&mut buf).unwrap();
                     *self.elem_mut() = Wrapping(buf[0]);
                 }
-                Stmt::SetNull => {
-                    *self.elem_mut() = Wrapping(0);
-                }
                 Stmt::SetN(n) => {
                     *self.elem_mut() = Wrapping(n);
                 }
