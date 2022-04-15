@@ -1,6 +1,7 @@
 use crate::parse::{Instr, Span};
 use crate::BumpVec;
 use bumpalo::Bump;
+use std::cmp::Ordering;
 use std::fmt::{Debug, Formatter};
 
 #[derive(Clone)]
@@ -53,6 +54,7 @@ pub fn optimize<'ir>(alloc: &'ir Bump, instrs: &[(Instr<'_>, Span)]) -> Ir<'ir> 
     let mut ir = pass_group(alloc, ir);
     pass_find_set_null(&mut ir);
     pass_set_n(&mut ir);
+    pass_cancel_left_right_add_sub(&mut ir);
     ir
 }
 
@@ -182,6 +184,65 @@ fn pass_set_n(ir: &mut Ir<'_>) {
             let span = a.span.merge(b.span);
             stmts.remove(i + 1);
             stmts[i] = Stmt::new(new, span);
+        }
+    }
+}
+
+/// pass that replaces `Left(5) Right(3)` with `Left(2)`
+fn pass_cancel_left_right_add_sub(ir: &mut Ir<'_>) {
+    let stmts = &mut ir.stmts;
+    let mut i = 0;
+    while i < stmts.len() {
+        let a = &mut stmts[i];
+        if let StmtKind::Loop(body) = &mut a.kind {
+            pass_cancel_left_right_add_sub(body);
+        }
+
+        if i >= stmts.len() - 1 {
+            break; // we are the last element
+        }
+
+        let a = &stmts[i];
+        let b = &stmts[i + 1];
+
+        match (a.kind(), b.kind()) {
+            (StmtKind::Right(r), StmtKind::Left(l)) | (StmtKind::Left(l), StmtKind::Right(r)) => {
+                let new = match r.cmp(l) {
+                    Ordering::Equal => {
+                        // remove both
+                        stmts.remove(i + 1);
+                        stmts.remove(i);
+                        continue;
+                    }
+                    Ordering::Less => StmtKind::Left(l - r),
+                    Ordering::Greater => StmtKind::Right(r - l),
+                };
+
+                let span = a.span.merge(b.span);
+                stmts.remove(i + 1);
+                stmts[i] = Stmt::new(new, span);
+                // don't increment i, maybe the next one matches as well (<><)
+            }
+            (StmtKind::Add(r), StmtKind::Sub(l)) | (StmtKind::Sub(l), StmtKind::Add(r)) => {
+                let new = match r.cmp(l) {
+                    Ordering::Equal => {
+                        // remove both
+                        stmts.remove(i + 1);
+                        stmts.remove(i);
+                        continue;
+                    }
+                    Ordering::Less => StmtKind::Sub(l - r),
+                    Ordering::Greater => StmtKind::Add(r - l),
+                };
+
+                let span = a.span.merge(b.span);
+                stmts.remove(i + 1);
+                stmts[i] = Stmt::new(new, span);
+                // don't increment i, maybe the next one matches as well (<><)
+            }
+            _ => {
+                i += 1;
+            }
         }
     }
 }
