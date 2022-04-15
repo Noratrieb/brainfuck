@@ -7,19 +7,21 @@ const MEM_SIZE: usize = 32_000;
 type Memory = [Wrapping<u8>; MEM_SIZE];
 
 // TODO maybe repr(C) to prevent field reordering?
-struct Interpreter<'c, W, R> {
+struct Interpreter<'c, W, R, P> {
     code: &'c Code<'c>,
     ip: usize,
     ptr: usize,
     stdout: W,
     stdin: R,
     mem: Memory,
+    profile_collector: P,
 }
 
-pub fn run<W, R>(code: &Code<'_>, stdout: W, stdin: R)
+pub fn run<W, R, P>(code: &Code<'_>, stdout: W, stdin: R, profile_collector: P)
 where
     W: Write,
     R: Read,
+    P: FnMut(usize),
 {
     let mut interpreter = Interpreter {
         code,
@@ -28,6 +30,7 @@ where
         stdout,
         stdin,
         mem: [Wrapping(0u8); MEM_SIZE],
+        profile_collector,
     };
 
     // SAFETY: `Code` can only be produced by the `crate::codegen` module, which is trusted to not
@@ -37,7 +40,10 @@ where
     }
 }
 
-impl<'c, W: Write, R: Read> Interpreter<'c, W, R> {
+impl<'c, W: Write, R: Read, P> Interpreter<'c, W, R, P>
+where
+    P: FnMut(usize),
+{
     unsafe fn execute(&mut self) {
         let stmts = self.code.stmts();
         loop {
@@ -93,6 +99,9 @@ impl<'c, W: Write, R: Read> Interpreter<'c, W, R> {
                 }
                 Stmt::End => break,
             }
+
+            // this should be a no-op if `profile_collector` is does nothing
+            (self.profile_collector)(self.ip);
         }
     }
     fn elem_mut(&mut self) -> &mut Wrapping<u8> {

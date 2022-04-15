@@ -15,10 +15,19 @@ impl Span {
         }
     }
 
+    /// start..end
     fn start_end(start: usize, end: usize) -> Span {
         Self {
             start: start.try_into().unwrap(),
             len: (end - start).try_into().unwrap(),
+        }
+    }
+
+    // start..=end
+    fn start_end_incl(start: usize, end: usize) -> Span {
+        Self {
+            start: start.try_into().unwrap(),
+            len: (end - start + 1).try_into().unwrap(),
         }
     }
 
@@ -46,8 +55,9 @@ impl Span {
         self.len.try_into().unwrap()
     }
 
+    /// ..end
     pub fn end(&self) -> usize {
-        self.start() + self.len() - 1
+        self.start() + self.len()
     }
 }
 
@@ -129,7 +139,7 @@ where
         }
     };
 
-    Ok((instrs, Span::start_end(start_idx, end_idx)))
+    Ok((instrs, Span::start_end_incl(start_idx, end_idx)))
 }
 
 #[cfg(test)]

@@ -5,6 +5,7 @@
 
 use crate::parse::ParseError;
 use bumpalo::Bump;
+use owo_colors::OwoColorize;
 use std::fmt::Display;
 use std::io::{Read, Write};
 
@@ -20,14 +21,14 @@ pub enum UseProfile {
     No,
 }
 
-pub fn run<R, W>(str: &str, stdout: W, stdin: R, use_profile: UseProfile) -> Result<(), ParseError>
+pub fn run<R, W>(src: &str, stdout: W, stdin: R, use_profile: UseProfile) -> Result<(), ParseError>
 where
     W: Write,
     R: Read,
 {
     let ast_alloc = Bump::new();
 
-    let parsed = parse::parse(&ast_alloc, str.bytes().enumerate())?;
+    let parsed = parse::parse(&ast_alloc, src.bytes().enumerate())?;
 
     let ir_alloc = Bump::new();
 
@@ -45,16 +46,28 @@ where
 
     match use_profile {
         UseProfile::Yes => {
-            // let profile = ir_interpreter::run_profile(&optimized_ir, stdout, stdin);
-            // let max = profile.iter().max().copied().unwrap_or(0);
-            // println!("---------------- Profile ----------------");
-            // for (i, char) in str.bytes().enumerate() {
-            //     print!("{}", color_by_profile(char as char, profile[i], max));
-            // }
-            println!("no supported lol");
+            let mut code_profile_count = vec![0; code.debug().len()];
+
+            codegen_interpreter::run(&code, stdout, stdin, |ip| unsafe {
+                *code_profile_count.get_unchecked_mut(ip) += 1;
+            });
+
+            let mut src_profile_count = vec![0u64; src.len()];
+
+            for (stmt_span, stmt_count) in code.debug().iter().zip(&code_profile_count) {
+                for i in &mut src_profile_count[stmt_span.start()..stmt_span.end()] {
+                    *i += stmt_count;
+                }
+            }
+
+            let max = src_profile_count.iter().max().copied().unwrap_or(0);
+            println!("---------------- Profile ----------------");
+            for (char, value) in src.bytes().zip(src_profile_count) {
+                print!("{}", color_by_profile(char as char, value, max));
+            }
         }
         UseProfile::No => {
-            codegen_interpreter::run(&code, stdout, stdin);
+            codegen_interpreter::run(&code, stdout, stdin, |_| {});
         }
     }
 
@@ -62,16 +75,16 @@ where
 }
 
 fn color_by_profile(char: char, value: u64, max: u64) -> impl Display {
-    use owo_colors::OwoColorize;
+    let max = max as f64;
+    let value = value as f64;
+    let ratio = value / max;
+    let logged = -ratio.log10();
+    let logged = (logged * 100.) as u64;
 
-    let percentage = ((max as f64) / (value as f64) * 100.0) as u64;
-
-    match percentage {
-        0..=1 => char.default_color().to_string(),
-        2..=10 => char.green().to_string(),
-        11..=30 => char.yellow().to_string(),
-        31..=90 => char.red().to_string(),
-        91..=100 => char.bright_red().to_string(),
+    match logged {
+        0..=15 => char.bright_red().to_string(),
+        16..=70 => char.yellow().to_string(),
+        71..=300 => char.green().to_string(),
         _ => char.default_color().to_string(),
     }
 }
