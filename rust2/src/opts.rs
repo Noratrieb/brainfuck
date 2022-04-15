@@ -54,7 +54,7 @@ pub fn optimize<'ir>(alloc: &'ir Bump, instrs: &[(Instr<'_>, Span)]) -> Ir<'ir> 
     let mut ir = pass_group(alloc, ir);
     pass_find_set_null(&mut ir);
     pass_set_n(&mut ir);
-    pass_cancel_left_right_add_sub(&mut ir);
+    //pass_cancel_left_right_add_sub(&mut ir); this is broken lol todo
     ir
 }
 
