@@ -1,4 +1,5 @@
 use bumpalo::Bump;
+use tracing::info;
 
 use crate::mir::{
     state::{CellState, MemoryState, MemoryStateChange},
@@ -6,13 +7,19 @@ use crate::mir::{
 };
 
 /// this pass fills out as much state info for all statements as possible
-#[tracing::instrument]
+#[tracing::instrument(skip(alloc, mir))]
+pub fn passes<'mir>(alloc: &'mir Bump, mir: &mut Mir<'mir>) {
+    pass_get_state_info(alloc, mir);
+    pass_const_propagation(mir);
+}
+/// this pass fills out as much state info for all statements as possible
+#[tracing::instrument(skip(alloc, mir))]
 pub fn pass_get_state_info<'mir>(alloc: &'mir Bump, mir: &mut Mir<'mir>) {
     let empty_state = MemoryState::empty(alloc);
     pass_get_state_info_inner(alloc, mir, empty_state);
 }
 
-#[tracing::instrument]
+#[tracing::instrument(skip(alloc, mir))]
 fn pass_get_state_info_inner<'mir>(
     alloc: &'mir Bump,
     mir: &mut Mir<'mir>,
@@ -85,5 +92,28 @@ fn pass_get_state_info_inner<'mir>(
     }
 }
 
-#[tracing::instrument]
-fn pass_const_propagation(mir: &mut Mir<'_>) {}
+#[tracing::instrument(skip(mir))]
+fn pass_const_propagation(mir: &mut Mir<'_>) {
+    pass_const_propagation_inner(mir)
+}
+
+fn pass_const_propagation_inner(mir: &mut Mir<'_>) {
+    for stmt in &mut mir.stmts {
+        match &mut stmt.kind {
+            StmtKind::Out => {
+                let state = stmt.state.state_for_offset(0);
+                info!(?state, "We got the state of the output 😳😳😳");
+                // we could now insert a `SetN` before the `Out`, to mark the previous store
+                // as dead.
+            }
+            StmtKind::Loop(body) => {
+                let state = stmt.state.state_for_offset(0);
+                info!(?state, "We got the state of the output 😳😳😳");
+                // we could now insert a `SetN` before the `Out`, to mark the previous store
+                // as dead.
+                pass_const_propagation_inner(body);
+            }
+            _ => {}
+        }
+    }
+}

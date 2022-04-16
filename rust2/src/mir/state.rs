@@ -38,7 +38,7 @@ impl<'mir> MemoryState<'mir> {
         })))
     }
 
-    pub fn state_for_offset(&self, offset: i32) -> &'mir CellState {
+    pub fn state_for_offset(&self, offset: i32) -> CellState {
         self.0.borrow().state_for_offset(offset)
     }
 }
@@ -60,26 +60,25 @@ pub struct MemoryStateInner<'mir> {
 }
 
 impl<'mir> MemoryStateInner<'mir> {
-    pub fn state_for_offset(&self, offset: i32) -> &'mir CellState {
+    pub fn state_for_offset(&self, offset: i32) -> CellState {
         let mut offset = offset;
         for delta in &self.deltas {
             match delta {
                 MemoryStateChange::Change {
                     offset: write_offset,
                     new_state,
-                } if *write_offset == offset => {
-                    return new_state;
-                }
+                } if *write_offset == offset => return new_state.clone(),
                 MemoryStateChange::Move(change) => offset -= change,
                 // we may not access the forbidden knowledge
-                MemoryStateChange::Forget => return &CellState::Unknown,
+                MemoryStateChange::Forget => return CellState::Unknown,
                 _ => {}
             }
         }
 
         self.prev
+            .as_ref()
             .map(|state| state.state_for_offset(offset))
-            .unwrap_or(&CellState::Unknown)
+            .unwrap_or(CellState::Unknown)
     }
 }
 

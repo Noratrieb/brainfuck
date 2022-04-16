@@ -86,7 +86,7 @@ where
     if let Some(DumpKind::Mir) = config.dump {
         let mir_alloc = Bump::new();
         let mir = mir::optimized_mir(&mir_alloc, &optimized_hir);
-        println!("{mir:#?}");
+        //println!("{mir:#?}");
     }
 
     let cg_alloc = Bump::new();

@@ -54,10 +54,10 @@ enum StmtKind<'mir> {
     SetN(u8, Store),
 }
 
-#[tracing::instrument]
+#[tracing::instrument(skip(alloc, hir))]
 pub fn optimized_mir<'mir>(alloc: &'mir Bump, hir: &Hir<'_>) -> Mir<'mir> {
     let mut mir = hir_to_mir(alloc, hir);
-    opts::pass_get_state_info(alloc, &mut mir);
+    opts::passes(alloc, &mut mir);
     mir
 }
 
