@@ -49,9 +49,9 @@ pub enum Stmt {
 const _: [(); 8] = [(); std::mem::size_of::<Stmt>()];
 
 #[derive(Clone)]
-pub struct Lir<'c> {
-    stmts: BumpVec<'c, Stmt>,
-    debug: BumpVec<'c, Span>,
+pub struct Lir<'lir> {
+    stmts: BumpVec<'lir, Stmt>,
+    debug: BumpVec<'lir, Span>,
 }
 
 impl Debug for Lir<'_> {
@@ -70,12 +70,12 @@ impl Lir<'_> {
     }
 }
 
-pub fn generate<'c>(alloc: &'c Bump, ir: &Hir<'_>) -> Lir<'c> {
+pub fn generate<'lir>(alloc: &'lir Bump, ir: &Hir<'_>) -> Lir<'lir> {
     let stmts = Vec::new_in(alloc);
     let debug = Vec::new_in(alloc);
     let mut lir = Lir { stmts, debug };
 
-    generate_stmts(&mut lir, &ir.stmts);
+    hir_to_lir(&mut lir, &ir.stmts);
     lir.stmts.push(Stmt::End);
     lir.debug.push(Span::default());
 
@@ -84,14 +84,14 @@ pub fn generate<'c>(alloc: &'c Bump, ir: &Hir<'_>) -> Lir<'c> {
     lir
 }
 
-fn generate_stmts<'c>(lir: &mut Lir<'c>, ir: &[HirStmt<'_>]) {
+fn hir_to_lir<'lir>(lir: &mut Lir<'lir>, ir: &[HirStmt<'_>]) {
     for ir_stmt in ir {
-        ir_to_stmt(lir, ir_stmt);
+        hir_stmt_to_lir_stmt(lir, ir_stmt);
     }
     debug_assert_eq!(lir.stmts.len(), lir.debug.len());
 }
 
-fn ir_to_stmt<'c>(lir: &mut Lir<'c>, ir_stmt: &HirStmt<'_>) {
+fn hir_stmt_to_lir_stmt<'lir>(lir: &mut Lir<'lir>, ir_stmt: &HirStmt<'_>) {
     let stmt = match &ir_stmt.kind {
         HirStmtKind::Add(0, n) => Stmt::Add(*n),
         HirStmtKind::Sub(0, n) => Stmt::Sub(*n),
@@ -115,7 +115,7 @@ fn ir_to_stmt<'c>(lir: &mut Lir<'c>, ir_stmt: &HirStmt<'_>) {
             lir.debug.push(ir_stmt.span);
 
             // compile the loop body now
-            generate_stmts(lir, &instr.stmts);
+            hir_to_lir(lir, &instr.stmts);
             // if the loop body is empty, we jmp to ourselves, which is an infinite loop - as expected
             let first_loop_body_idx = skip_jmp_idx + 1;
             lir.stmts

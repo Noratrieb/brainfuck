@@ -31,7 +31,7 @@ impl<'hir> Stmt<'hir> {
         Self { kind, span }
     }
 
-    fn kind(&self) -> &StmtKind<'hir> {
+    pub fn kind(&self) -> &StmtKind<'hir> {
         &self.kind
     }
 }

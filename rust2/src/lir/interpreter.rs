@@ -12,8 +12,8 @@ type Memory = [Wrapping<u8>; MEM_SIZE];
 // `repr(C)` to make sure rustc never reorders the fields weirdly
 // maybe useless, but seems to give tiny wins
 #[repr(C)]
-struct Interpreter<'c, W, R, P> {
-    code: &'c Lir<'c>,
+struct Interpreter<'lir, W, R, P> {
+    code: &'lir Lir<'lir>,
     profile_collector: P,
     ip: usize,
     ptr: usize,
