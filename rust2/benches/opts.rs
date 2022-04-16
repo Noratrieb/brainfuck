@@ -1,6 +1,7 @@
+use std::io::{Read, Write};
+
 use bumpalo::Bump;
 use criterion::{black_box, criterion_main, Criterion};
-use std::io::{Read, Write};
 
 struct MockReadWrite;
 
@@ -24,9 +25,9 @@ impl Write for MockReadWrite {
 fn run_bf(bf: &str) {
     let bump = Bump::new();
     let ast = brainfuck::parse::parse(&bump, bf.bytes().enumerate()).unwrap();
-    let ir = brainfuck::opts::optimize(&bump, &ast);
-    let code = brainfuck::codegen::generate(&bump, &ir);
-    brainfuck::codegen_interpreter::run(&code, MockReadWrite, MockReadWrite, |_| {});
+    let hir = brainfuck::hir::optimized_hir(&bump, &ast);
+    let lir = brainfuck::lir::generate(&bump, &hir);
+    brainfuck::lir::interpreter::run(&lir, MockReadWrite, MockReadWrite, |_| {});
 }
 
 fn optimized(c: &mut Criterion) {

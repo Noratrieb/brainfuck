@@ -2,17 +2,20 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 #![warn(rust_2018_idioms)]
 
-use crate::parse::ParseError;
+use std::{
+    fmt::Display,
+    io::{Read, Write},
+    path::PathBuf,
+    str::FromStr,
+};
+
 use bumpalo::Bump;
 use owo_colors::OwoColorize;
-use std::fmt::Display;
-use std::io::{Read, Write};
-use std::path::PathBuf;
-use std::str::FromStr;
 
-pub mod codegen;
-pub mod codegen_interpreter;
-pub mod opts;
+use crate::parse::ParseError;
+
+pub mod hir;
+pub mod lir;
 pub mod parse;
 
 #[derive(clap::Parser, Default)]
@@ -27,8 +30,8 @@ pub struct Args {
 
 pub enum DumpKind {
     Ast,
-    Ir,
-    Code,
+    Hir,
+    Lir,
 }
 
 impl FromStr for DumpKind {
@@ -37,8 +40,8 @@ impl FromStr for DumpKind {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "ast" => Ok(Self::Ast),
-            "ir" => Ok(Self::Ir),
-            "code" => Ok(Self::Code),
+            "hir" => Ok(Self::Hir),
+            "lir" => Ok(Self::Lir),
             other => Err(format!("Invalid IR level: '{other}'")),
         }
     }
@@ -65,12 +68,12 @@ where
         return Ok(());
     }
 
-    let ir_alloc = Bump::new();
+    let hir_alloc = Bump::new();
 
-    let optimized_ir = opts::optimize(&ir_alloc, &parsed);
+    let optimized_hir = hir::optimized_hir(&hir_alloc, &parsed);
 
-    if let Some(DumpKind::Ir) = config.dump {
-        println!("{optimized_ir:#?}");
+    if let Some(DumpKind::Hir) = config.dump {
+        println!("{optimized_hir:#?}");
         return Ok(());
     }
 
@@ -79,27 +82,27 @@ where
 
     let cg_alloc = Bump::new();
 
-    let code = codegen::generate(&cg_alloc, &optimized_ir);
+    let lir = lir::generate(&cg_alloc, &optimized_hir);
 
-    if let Some(DumpKind::Code) = config.dump {
-        println!("{code:#?}");
+    if let Some(DumpKind::Lir) = config.dump {
+        println!("{lir:#?}");
         return Ok(());
     }
 
-    drop(optimized_ir);
-    drop(ir_alloc);
+    drop(optimized_hir);
+    drop(hir_alloc);
 
     match config.profile {
         true => {
-            let mut code_profile_count = vec![0; code.debug().len()];
+            let mut code_profile_count = vec![0; lir.debug().len()];
 
-            codegen_interpreter::run(&code, stdout, stdin, |ip| unsafe {
+            lir::interpreter::run(&lir, stdout, stdin, |ip| unsafe {
                 *code_profile_count.get_unchecked_mut(ip) += 1;
             });
 
             let mut src_profile_count = vec![0u64; src.len()];
 
-            for (stmt_span, stmt_count) in code.debug().iter().zip(&code_profile_count) {
+            for (stmt_span, stmt_count) in lir.debug().iter().zip(&code_profile_count) {
                 for i in &mut src_profile_count[stmt_span.start()..stmt_span.end()] {
                     *i += stmt_count;
                 }
@@ -112,7 +115,7 @@ where
             }
         }
         false => {
-            codegen_interpreter::run(&code, stdout, stdin, |_| {});
+            lir::interpreter::run(&lir, stdout, stdin, |_| {});
         }
     }
 

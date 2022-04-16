@@ -1,6 +1,6 @@
+use std::{cmp, fmt::Debug};
+
 use bumpalo::Bump;
-use std::cmp;
-use std::fmt::Debug;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Span {

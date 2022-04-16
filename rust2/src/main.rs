@@ -1,9 +1,10 @@
 #![feature(allocator_api, let_else)]
 #![warn(rust_2018_idioms)]
 
+use std::{fs, io, process};
+
 use brainfuck::Args;
 use clap::Parser;
-use std::{fs, io, process};
 
 fn main() {
     let stdout = io::stdout();

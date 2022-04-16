@@ -17,11 +17,17 @@
 //! this module must not produce out of bounds jumps and always put the `End` instruction at the
 //! end
 
-use crate::opts::{Ir, Stmt as IrStmt, StmtKind};
-use crate::parse::Span;
-use crate::BumpVec;
-use bumpalo::Bump;
+pub mod interpreter;
+
 use std::fmt::{Debug, Formatter};
+
+use bumpalo::Bump;
+
+use crate::{
+    hir::{Hir, Stmt as HirStmt, StmtKind as HirStmtKind},
+    parse::Span,
+    BumpVec,
+};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Stmt {
@@ -43,18 +49,18 @@ pub enum Stmt {
 const _: [(); 8] = [(); std::mem::size_of::<Stmt>()];
 
 #[derive(Clone)]
-pub struct Code<'c> {
+pub struct Lir<'c> {
     stmts: BumpVec<'c, Stmt>,
     debug: BumpVec<'c, Span>,
 }
 
-impl Debug for Code<'_> {
+impl Debug for Lir<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         self.stmts.fmt(f)
     }
 }
 
-impl Code<'_> {
+impl Lir<'_> {
     pub fn stmts(&self) -> &[Stmt] {
         &self.stmts
     }
@@ -64,68 +70,68 @@ impl Code<'_> {
     }
 }
 
-pub fn generate<'c>(alloc: &'c Bump, ir: &Ir<'_>) -> Code<'c> {
+pub fn generate<'c>(alloc: &'c Bump, ir: &Hir<'_>) -> Lir<'c> {
     let stmts = Vec::new_in(alloc);
     let debug = Vec::new_in(alloc);
-    let mut code = Code { stmts, debug };
+    let mut lir = Lir { stmts, debug };
 
-    generate_stmts(&mut code, &ir.stmts);
-    code.stmts.push(Stmt::End);
-    code.debug.push(Span::default());
+    generate_stmts(&mut lir, &ir.stmts);
+    lir.stmts.push(Stmt::End);
+    lir.debug.push(Span::default());
 
-    assert_eq!(code.stmts.len(), code.debug.len());
+    assert_eq!(lir.stmts.len(), lir.debug.len());
 
-    code
+    lir
 }
 
-fn generate_stmts<'c>(code: &mut Code<'c>, ir: &[IrStmt<'_>]) {
+fn generate_stmts<'c>(lir: &mut Lir<'c>, ir: &[HirStmt<'_>]) {
     for ir_stmt in ir {
-        ir_to_stmt(code, ir_stmt);
+        ir_to_stmt(lir, ir_stmt);
     }
-    debug_assert_eq!(code.stmts.len(), code.debug.len());
+    debug_assert_eq!(lir.stmts.len(), lir.debug.len());
 }
 
-fn ir_to_stmt<'c>(code: &mut Code<'c>, ir_stmt: &IrStmt<'_>) {
+fn ir_to_stmt<'c>(lir: &mut Lir<'c>, ir_stmt: &HirStmt<'_>) {
     let stmt = match &ir_stmt.kind {
-        StmtKind::Add(0, n) => Stmt::Add(*n),
-        StmtKind::Sub(0, n) => Stmt::Sub(*n),
-        StmtKind::Add(offset, n) => Stmt::AddOffset {
+        HirStmtKind::Add(0, n) => Stmt::Add(*n),
+        HirStmtKind::Sub(0, n) => Stmt::Sub(*n),
+        HirStmtKind::Add(offset, n) => Stmt::AddOffset {
             offset: *offset,
             n: *n,
         },
-        StmtKind::Sub(offset, n) => Stmt::SubOffset {
+        HirStmtKind::Sub(offset, n) => Stmt::SubOffset {
             offset: *offset,
             n: *n,
         },
-        StmtKind::MoveAddTo { offset } => Stmt::MoveAddTo { offset: *offset },
-        StmtKind::Right(n) => Stmt::Right(u32::try_from(*n).unwrap()),
-        StmtKind::Left(n) => Stmt::Left(u32::try_from(*n).unwrap()),
-        StmtKind::Out => Stmt::Out,
-        StmtKind::In => Stmt::In,
-        StmtKind::SetN(n) => Stmt::SetN(*n),
-        StmtKind::Loop(instr) => {
-            let skip_jmp_idx = code.stmts.len();
-            code.stmts.push(Stmt::JmpIfZero(0)); // placeholder
-            code.debug.push(ir_stmt.span);
+        HirStmtKind::MoveAddTo { offset } => Stmt::MoveAddTo { offset: *offset },
+        HirStmtKind::Right(n) => Stmt::Right(u32::try_from(*n).unwrap()),
+        HirStmtKind::Left(n) => Stmt::Left(u32::try_from(*n).unwrap()),
+        HirStmtKind::Out => Stmt::Out,
+        HirStmtKind::In => Stmt::In,
+        HirStmtKind::SetN(n) => Stmt::SetN(*n),
+        HirStmtKind::Loop(instr) => {
+            let skip_jmp_idx = lir.stmts.len();
+            lir.stmts.push(Stmt::JmpIfZero(0)); // placeholder
+            lir.debug.push(ir_stmt.span);
 
             // compile the loop body now
-            generate_stmts(code, &instr.stmts);
+            generate_stmts(lir, &instr.stmts);
             // if the loop body is empty, we jmp to ourselves, which is an infinite loop - as expected
             let first_loop_body_idx = skip_jmp_idx + 1;
-            code.stmts
+            lir.stmts
                 .push(Stmt::JmpIfNonZero(first_loop_body_idx.try_into().unwrap()));
-            code.debug.push(ir_stmt.span);
+            lir.debug.push(ir_stmt.span);
 
             // there will always at least be an `End` instruction after the loop
-            let after_loop_idx = code.stmts.len();
+            let after_loop_idx = lir.stmts.len();
 
             // fix the placeholder with the actual index
-            code.stmts[skip_jmp_idx] = Stmt::JmpIfZero(after_loop_idx.try_into().unwrap());
+            lir.stmts[skip_jmp_idx] = Stmt::JmpIfZero(after_loop_idx.try_into().unwrap());
 
             return;
         }
     };
 
-    code.stmts.push(stmt);
-    code.debug.push(ir_stmt.span);
+    lir.stmts.push(stmt);
+    lir.debug.push(ir_stmt.span);
 }

@@ -1,111 +1,38 @@
-use crate::parse::{Instr, Span};
-use crate::BumpVec;
-use bumpalo::Bump;
 use std::cmp::Ordering;
-use std::fmt::{Debug, Formatter};
+
+use bumpalo::Bump;
 use tracing::trace;
 
-#[derive(Clone)]
-pub struct Ir<'ir> {
-    pub stmts: BumpVec<'ir, Stmt<'ir>>,
-}
+use crate::{
+    hir::{Hir, Stmt, StmtKind},
+    BumpVec,
+};
 
-impl Debug for Ir<'_> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        self.stmts.fmt(f)
-    }
-}
-
-#[derive(Clone)]
-pub struct Stmt<'ir> {
-    pub kind: StmtKind<'ir>,
-    pub span: Span,
-}
-
-impl<'ir> Stmt<'ir> {
-    fn new(kind: StmtKind<'ir>, span: Span) -> Stmt<'ir> {
-        Self { kind, span }
-    }
-
-    fn kind(&self) -> &StmtKind<'ir> {
-        &self.kind
-    }
-}
-
-impl Debug for Stmt<'_> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        self.kind.fmt(f)
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum StmtKind<'ir> {
-    Add(i32, u8),
-    Sub(i32, u8),
-    /// Sets the current cell to 0 and adds that value of the cell to another cell at `offset`
-    MoveAddTo {
-        offset: i32,
-    },
-    Right(usize),
-    Left(usize),
-    Loop(Ir<'ir>),
-    Out,
-    In,
-    SetN(u8),
-}
-
-pub fn optimize<'ir>(alloc: &'ir Bump, instrs: &[(Instr<'_>, Span)]) -> Ir<'ir> {
-    let mut ir = ast_to_ir(alloc, instrs);
-    pass_group(alloc, &mut ir);
-    pass_find_set_null(&mut ir);
-    pass_set_n(&mut ir);
-    pass_cancel_left_right_add_sub(&mut ir);
-    pass_add_sub_offset(&mut ir);
-    pass_move_add_to(&mut ir);
-
-    ir
-}
-
-fn ast_to_ir<'ir>(alloc: &'ir Bump, ast: &[(Instr<'_>, Span)]) -> Ir<'ir> {
-    let mut stmts = Vec::new_in(alloc);
-
-    let stmts_iter = ast.iter().map(|(instr, span)| {
-        let kind = match instr {
-            Instr::Add => StmtKind::Add(0, 1),
-            Instr::Sub => StmtKind::Sub(0, 1),
-            Instr::Right => StmtKind::Right(1),
-            Instr::Left => StmtKind::Left(1),
-            Instr::Out => StmtKind::Out,
-            Instr::In => StmtKind::In,
-            Instr::Loop(body) => {
-                let ir_body = ast_to_ir(alloc, body);
-                StmtKind::Loop(ir_body)
-            }
-        };
-        Stmt::new(kind, *span)
-    });
-
-    stmts.extend(stmts_iter);
-
-    Ir { stmts }
+pub fn optimize<'hir>(alloc: &'hir Bump, hir: &mut Hir<'hir>) {
+    pass_group(alloc, hir);
+    pass_find_set_null(hir);
+    pass_set_n(hir);
+    pass_cancel_left_right_add_sub(hir);
+    pass_add_sub_offset(hir);
+    pass_move_add_to(hir);
 }
 
 /// pass that replaces things like `Sub(1) Sub(1)` with `Sub(2)`
 // TODO: This pass is really slow, speed it up please
 #[tracing::instrument]
-fn pass_group<'ir>(alloc: &'ir Bump, ir_param: &mut Ir<'ir>) {
-    let empty_ir = Ir {
+fn pass_group<'hir>(alloc: &'hir Bump, ir_param: &mut Hir<'hir>) {
+    let empty_ir = Hir {
         stmts: Vec::new_in(alloc),
     };
 
     let ir = std::mem::replace(ir_param, empty_ir);
 
     let new_stmts = Vec::new_in(alloc);
-    let stmts = ir
-        .stmts
-        .into_iter()
-        .fold(new_stmts, |mut stmts: BumpVec<'ir, Stmt<'ir>>, next| {
-            let Some(old) = stmts.last_mut() else {
+    let stmts =
+        ir.stmts
+            .into_iter()
+            .fold(new_stmts, |mut stmts: BumpVec<'hir, Stmt<'hir>>, next| {
+                let Some(old) = stmts.last_mut() else {
                 if let StmtKind::Loop(mut body) = next.kind {
                     pass_group(alloc, &mut body);
                     stmts.push(Stmt::new(
@@ -118,48 +45,48 @@ fn pass_group<'ir>(alloc: &'ir Bump, ir_param: &mut Ir<'ir>) {
                 return stmts;
             };
 
-            match (&mut old.kind, next.kind) {
-                (StmtKind::Add(offset_a, a), StmtKind::Add(offset_b, b))
-                    if *a < 255 && *offset_a == offset_b =>
-                {
-                    old.span = old.span.merge(next.span);
-                    *a += b;
+                match (&mut old.kind, next.kind) {
+                    (StmtKind::Add(offset_a, a), StmtKind::Add(offset_b, b))
+                        if *a < 255 && *offset_a == offset_b =>
+                    {
+                        old.span = old.span.merge(next.span);
+                        *a += b;
+                    }
+                    (StmtKind::Sub(offset_a, a), StmtKind::Sub(offset_b, b))
+                        if *a < 255 && *offset_a == offset_b =>
+                    {
+                        old.span = old.span.merge(next.span);
+                        *a += b;
+                    }
+                    (StmtKind::Right(a), StmtKind::Right(b)) if *a < 255 => {
+                        old.span = old.span.merge(next.span);
+                        *a += b;
+                    }
+                    (StmtKind::Left(a), StmtKind::Left(b)) if *a < 255 => {
+                        old.span = old.span.merge(next.span);
+                        *a += b;
+                    }
+                    (_, StmtKind::Loop(mut body)) => {
+                        pass_group(alloc, &mut body);
+                        stmts.push(Stmt {
+                            span: next.span,
+                            kind: StmtKind::Loop(body),
+                        });
+                    }
+                    (_, kind) => {
+                        stmts.push(Stmt::new(kind, next.span));
+                    }
                 }
-                (StmtKind::Sub(offset_a, a), StmtKind::Sub(offset_b, b))
-                    if *a < 255 && *offset_a == offset_b =>
-                {
-                    old.span = old.span.merge(next.span);
-                    *a += b;
-                }
-                (StmtKind::Right(a), StmtKind::Right(b)) if *a < 255 => {
-                    old.span = old.span.merge(next.span);
-                    *a += b;
-                }
-                (StmtKind::Left(a), StmtKind::Left(b)) if *a < 255 => {
-                    old.span = old.span.merge(next.span);
-                    *a += b;
-                }
-                (_, StmtKind::Loop(mut body)) => {
-                    pass_group(alloc, &mut body);
-                    stmts.push(Stmt {
-                        span: next.span,
-                        kind: StmtKind::Loop(body),
-                    });
-                }
-                (_, kind) => {
-                    stmts.push(Stmt::new(kind, next.span));
-                }
-            }
 
-            stmts
-        });
+                stmts
+            });
 
-    *ir_param = Ir { stmts };
+    *ir_param = Hir { stmts };
 }
 
 /// pass that replaces `Loop([Sub(_)])` to `SetNull`
 #[tracing::instrument]
-fn pass_find_set_null(ir: &mut Ir<'_>) {
+fn pass_find_set_null(ir: &mut Hir<'_>) {
     for stmt in &mut ir.stmts {
         if let Stmt {
             kind: StmtKind::Loop(body),
@@ -182,7 +109,7 @@ fn pass_find_set_null(ir: &mut Ir<'_>) {
 
 /// pass that replaces `SetN(n) Add(m)` with `SetN(n + m)`
 #[tracing::instrument]
-fn pass_set_n(ir: &mut Ir<'_>) {
+fn pass_set_n(ir: &mut Hir<'_>) {
     window_pass(ir, pass_set_n, |[a, b]| {
         if let StmtKind::SetN(before) = a.kind() {
             let new = match b.kind() {
@@ -200,7 +127,7 @@ fn pass_set_n(ir: &mut Ir<'_>) {
 
 /// pass that replaces `Left(5) Right(3)` with `Left(2)`
 #[tracing::instrument]
-fn pass_cancel_left_right_add_sub(ir: &mut Ir<'_>) {
+fn pass_cancel_left_right_add_sub(ir: &mut Hir<'_>) {
     window_pass(ir, pass_cancel_left_right_add_sub, |[a, b]| {
         match (a.kind(), b.kind()) {
             (StmtKind::Right(r), StmtKind::Left(l)) | (StmtKind::Left(l), StmtKind::Right(r)) => {
@@ -233,7 +160,7 @@ fn pass_cancel_left_right_add_sub(ir: &mut Ir<'_>) {
 
 /// pass that replaces `Right(9) Add(5) Left(9)` with `AddOffset(9, 5)`
 #[tracing::instrument]
-fn pass_add_sub_offset(ir: &mut Ir<'_>) {
+fn pass_add_sub_offset(ir: &mut Hir<'_>) {
     window_pass(ir, pass_add_sub_offset, |[a, b, c]| {
         match (a.kind(), b.kind(), c.kind()) {
             (StmtKind::Right(r), StmtKind::Add(0, n), StmtKind::Left(l)) if r == l => {
@@ -255,7 +182,7 @@ fn pass_add_sub_offset(ir: &mut Ir<'_>) {
 
 /// pass that replaces `Loop([Sub(1) AddOffset(o, 1)])` with `MoveAddTo(o)`
 #[tracing::instrument]
-fn pass_move_add_to(ir: &mut Ir<'_>) {
+fn pass_move_add_to(ir: &mut Hir<'_>) {
     for stmt in &mut ir.stmts {
         if let Stmt {
             kind: StmtKind::Loop(body),
@@ -286,16 +213,16 @@ fn pass_move_add_to(ir: &mut Ir<'_>) {
     }
 }
 
-enum WindowPassAction<'ir> {
+enum WindowPassAction<'hir> {
     None,
-    Merge(StmtKind<'ir>),
+    Merge(StmtKind<'hir>),
     RemoveAll,
 }
 
-fn window_pass<'ir, P, F, const N: usize>(ir: &mut Ir<'ir>, pass_recur: P, action: F)
+fn window_pass<'hir, P, F, const N: usize>(ir: &mut Hir<'hir>, pass_recur: P, action: F)
 where
-    P: Fn(&mut Ir<'ir>),
-    F: Fn([&Stmt<'ir>; N]) -> WindowPassAction<'ir>,
+    P: Fn(&mut Hir<'hir>),
+    F: Fn([&Stmt<'hir>; N]) -> WindowPassAction<'hir>,
 {
     assert!(N > 0);
 

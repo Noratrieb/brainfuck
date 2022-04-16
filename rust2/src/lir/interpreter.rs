@@ -1,6 +1,9 @@
-use crate::codegen::{Code, Stmt};
-use std::io::{Read, Write};
-use std::num::Wrapping;
+use std::{
+    io::{Read, Write},
+    num::Wrapping,
+};
+
+use crate::lir::{Lir, Stmt};
 
 const MEM_SIZE: usize = 32_000;
 
@@ -10,7 +13,7 @@ type Memory = [Wrapping<u8>; MEM_SIZE];
 // maybe useless, but seems to give tiny wins
 #[repr(C)]
 struct Interpreter<'c, W, R, P> {
-    code: &'c Code<'c>,
+    code: &'c Lir<'c>,
     profile_collector: P,
     ip: usize,
     ptr: usize,
@@ -19,7 +22,7 @@ struct Interpreter<'c, W, R, P> {
     stdin: R,
 }
 
-pub fn run<W, R, P>(code: &Code<'_>, stdout: W, stdin: R, profile_collector: P)
+pub fn run<W, R, P>(code: &Lir<'_>, stdout: W, stdin: R, profile_collector: P)
 where
     W: Write,
     R: Read,
@@ -35,7 +38,7 @@ where
         profile_collector,
     };
 
-    // SAFETY: `Code` can only be produced by the `crate::codegen` module, which is trusted to not
+    // SAFETY: `Lir` can only be produced by the `crate::lir` module, which is trusted to not
     // produce out of bounds jumps and put the `End` at the end
     unsafe {
         interpreter.execute();
