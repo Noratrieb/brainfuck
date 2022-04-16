@@ -26,9 +26,12 @@ pub struct Args {
     pub profile: bool,
     #[clap(long)]
     pub dump: Option<DumpKind>,
+    #[clap(long)]
+    pub mir: bool,
     pub file: PathBuf,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DumpKind {
     Ast,
     Hir,
@@ -83,10 +86,12 @@ where
     drop(parsed);
     drop(ast_alloc);
 
-    if let Some(DumpKind::Mir) = config.dump {
+    if config.dump == Some(DumpKind::Mir) || config.mir {
         let mir_alloc = Bump::new();
         let mir = mir::optimized_mir(&mir_alloc, &optimized_hir);
-        //println!("{mir:#?}");
+        if config.dump == Some(DumpKind::Mir) {
+            println!("{mir:#?}");
+        }
     }
 
     let cg_alloc = Bump::new();

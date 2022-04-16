@@ -27,14 +27,25 @@ fn pass_get_state_info_inner<'mir>(
 ) {
     for stmt in &mut mir.stmts {
         let state = match &mut stmt.kind {
-            StmtKind::AddSub(offset, _, store) => MemoryState::single(
-                alloc,
-                outer,
-                MemoryStateChange::Change {
-                    offset: *offset,
-                    new_state: CellState::WrittenToUnknown(store.clone()),
-                },
-            ),
+            StmtKind::AddSub(offset, n, store) => {
+                let prev_state = outer.state_for_offset(*offset);
+                let new_state = match prev_state {
+                    CellState::WrittenToKnown(_, prev_n) => {
+                        let n = i16::from(prev_n).wrapping_add(*n);
+                        let n = u8::try_from(n).unwrap();
+                        CellState::WrittenToKnown(store.clone(), n)
+                    }
+                    _ => CellState::WrittenToUnknown(store.clone()),
+                };
+                MemoryState::single(
+                    alloc,
+                    outer,
+                    MemoryStateChange::Change {
+                        offset: *offset,
+                        new_state,
+                    },
+                )
+            }
             StmtKind::MoveAddTo {
                 offset,
                 store_set_null,

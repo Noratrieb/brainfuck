@@ -1,5 +1,7 @@
+// todo: we're gonna leak `Rc`s here aren't we?
+
 use std::{
-    cell::RefCell,
+    cell::{Cell, RefCell},
     fmt::{Debug, Formatter},
     rc::Rc,
 };
@@ -32,10 +34,36 @@ pub struct MemoryState<'mir>(Rc<RefCell<MemoryStateInner<'mir>>>);
 
 impl<'mir> MemoryState<'mir> {
     pub fn empty(alloc: &'mir Bump) -> Self {
-        Self(Rc::new(RefCell::new(MemoryStateInner {
-            prev: None,
-            deltas: Vec::new_in(alloc),
-        })))
+        Self::new(None, Vec::new_in(alloc))
+    }
+
+    pub fn single(
+        alloc: &'mir Bump,
+        prev: MemoryState<'mir>,
+        delta: MemoryStateChange,
+    ) -> MemoryState<'mir> {
+        let mut deltas = Vec::new_in(alloc);
+        deltas.push(delta);
+        Self::new(Some(prev), deltas)
+    }
+
+    pub fn double(
+        alloc: &'mir Bump,
+        prev: MemoryState<'mir>,
+        delta1: MemoryStateChange,
+        delta2: MemoryStateChange,
+    ) -> MemoryState<'mir> {
+        let mut deltas = Vec::new_in(alloc);
+        deltas.push(delta1);
+        deltas.push(delta2);
+        Self::new(Some(prev), deltas)
+    }
+
+    pub fn new(
+        prev: Option<MemoryState<'mir>>,
+        deltas: BumpVec<'mir, MemoryStateChange>,
+    ) -> MemoryState<'mir> {
+        Self(Rc::new(RefCell::new(MemoryStateInner { prev, deltas })))
     }
 
     pub fn state_for_offset(&self, offset: i32) -> CellState {
@@ -82,42 +110,8 @@ impl<'mir> MemoryStateInner<'mir> {
     }
 }
 
-impl<'mir> MemoryState<'mir> {
-    pub fn single(
-        alloc: &'mir Bump,
-        prev: MemoryState<'mir>,
-        delta: MemoryStateChange,
-    ) -> MemoryState<'mir> {
-        let mut deltas = Vec::new_in(alloc);
-        deltas.push(delta);
-        Self::new(prev, deltas)
-    }
-
-    pub fn double(
-        alloc: &'mir Bump,
-        prev: MemoryState<'mir>,
-        delta1: MemoryStateChange,
-        delta2: MemoryStateChange,
-    ) -> MemoryState<'mir> {
-        let mut deltas = Vec::new_in(alloc);
-        deltas.push(delta1);
-        deltas.push(delta2);
-        Self::new(prev, deltas)
-    }
-
-    pub fn new(
-        prev: MemoryState<'mir>,
-        deltas: BumpVec<'mir, MemoryStateChange>,
-    ) -> MemoryState<'mir> {
-        Self(Rc::new(RefCell::new(MemoryStateInner {
-            prev: Some(prev),
-            deltas,
-        })))
-    }
-}
-
 #[derive(Clone)]
-pub struct Store(Rc<RefCell<StoreInner>>);
+pub struct Store(Rc<Cell<StoreInner>>);
 
 impl Store {
     pub fn unknown() -> Self {
@@ -127,14 +121,11 @@ impl Store {
 
 impl Debug for Store {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        self.0
-            .try_borrow()
-            .map(|s| StoreInner::fmt(&*s, f))
-            .unwrap_or_else(|_| f.debug_struct("Store").finish_non_exhaustive())
+        self.0.get().fmt(f)
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum StoreInner {
     Unknown,
     Used(usize),
@@ -143,6 +134,6 @@ pub enum StoreInner {
 
 impl From<StoreInner> for Store {
     fn from(inner: StoreInner) -> Self {
-        Self(Rc::new(RefCell::new(inner)))
+        Self(Rc::new(Cell::new(inner)))
     }
 }
