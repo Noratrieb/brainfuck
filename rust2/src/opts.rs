@@ -55,13 +55,14 @@ pub enum StmtKind<'ir> {
 }
 
 pub fn optimize<'ir>(alloc: &'ir Bump, instrs: &[(Instr<'_>, Span)]) -> Ir<'ir> {
-    let ir = ast_to_ir(alloc, instrs);
-    let mut ir = pass_group(alloc, ir);
+    let mut ir = ast_to_ir(alloc, instrs);
+    pass_group(alloc, &mut ir);
     pass_find_set_null(&mut ir);
     pass_set_n(&mut ir);
     pass_cancel_left_right_add_sub(&mut ir);
     pass_add_sub_offset(&mut ir);
     pass_move_add_to(&mut ir);
+
     ir
 }
 
@@ -90,18 +91,25 @@ fn ast_to_ir<'ir>(alloc: &'ir Bump, ast: &[(Instr<'_>, Span)]) -> Ir<'ir> {
 }
 
 /// pass that replaces things like `Sub(1) Sub(1)` with `Sub(2)`
+// TODO: This pass is really slow, speed it up please
 #[tracing::instrument]
-fn pass_group<'ir>(alloc: &'ir Bump, ir: Ir<'ir>) -> Ir<'ir> {
+fn pass_group<'ir>(alloc: &'ir Bump, ir_param: &mut Ir<'ir>) {
+    let empty_ir = Ir {
+        stmts: Vec::new_in(alloc),
+    };
+
+    let ir = std::mem::replace(ir_param, empty_ir);
+
     let new_stmts = Vec::new_in(alloc);
     let stmts = ir
         .stmts
         .into_iter()
         .fold(new_stmts, |mut stmts: BumpVec<'ir, Stmt<'ir>>, next| {
             let Some(old) = stmts.last_mut() else {
-                if let StmtKind::Loop(body) = next.kind {
-                    let new_body = pass_group(alloc, body);
+                if let StmtKind::Loop(mut body) = next.kind {
+                    pass_group(alloc, &mut body);
                     stmts.push(Stmt::new(
-                         StmtKind::Loop(new_body),
+                         StmtKind::Loop(body),
                         next.span,
                     ));
                 } else {
@@ -131,11 +139,11 @@ fn pass_group<'ir>(alloc: &'ir Bump, ir: Ir<'ir>) -> Ir<'ir> {
                     old.span = old.span.merge(next.span);
                     *a += b;
                 }
-                (_, StmtKind::Loop(body)) => {
-                    let new_body = pass_group(alloc, body);
+                (_, StmtKind::Loop(mut body)) => {
+                    pass_group(alloc, &mut body);
                     stmts.push(Stmt {
                         span: next.span,
-                        kind: StmtKind::Loop(new_body),
+                        kind: StmtKind::Loop(body),
                     });
                 }
                 (_, kind) => {
@@ -146,7 +154,7 @@ fn pass_group<'ir>(alloc: &'ir Bump, ir: Ir<'ir>) -> Ir<'ir> {
             stmts
         });
 
-    Ir { stmts }
+    *ir_param = Ir { stmts };
 }
 
 /// pass that replaces `Loop([Sub(_)])` to `SetNull`
