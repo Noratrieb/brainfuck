@@ -16,6 +16,7 @@ use crate::parse::ParseError;
 
 pub mod hir;
 pub mod lir;
+mod mir;
 pub mod parse;
 
 #[derive(clap::Parser, Default)]
@@ -31,6 +32,7 @@ pub struct Args {
 pub enum DumpKind {
     Ast,
     Hir,
+    Mir,
     Lir,
 }
 
@@ -41,6 +43,7 @@ impl FromStr for DumpKind {
         match s {
             "ast" => Ok(Self::Ast),
             "hir" => Ok(Self::Hir),
+            "mir" => Ok(Self::Mir),
             "lir" => Ok(Self::Lir),
             other => Err(format!("Invalid IR level: '{other}'")),
         }
@@ -79,6 +82,12 @@ where
 
     drop(parsed);
     drop(ast_alloc);
+
+    if let Some(DumpKind::Mir) = config.dump {
+        let mir_alloc = Bump::new();
+        let mir = mir::optimized_mir(&mir_alloc, &optimized_hir);
+        println!("{mir:#?}");
+    }
 
     let cg_alloc = Bump::new();
 
