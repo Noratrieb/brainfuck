@@ -40,16 +40,8 @@ impl Debug for Stmt<'_> {
 
 #[derive(Debug, Clone)]
 pub enum StmtKind<'ir> {
-    Add(u8), // todo: we probably want to remove this
-    Sub(u8), // todo: we probably want to remove this
-    AddOffset {
-        offset: i32,
-        n: u8,
-    },
-    SubOffset {
-        offset: i32,
-        n: u8,
-    },
+    Add(i32, u8),
+    Sub(i32, u8),
     /// Sets the current cell to 0 and adds that value of the cell to another cell at `offset`
     MoveAddTo {
         offset: i32,
@@ -78,8 +70,8 @@ fn ast_to_ir<'ir>(alloc: &'ir Bump, ast: &[(Instr<'_>, Span)]) -> Ir<'ir> {
 
     let stmts_iter = ast.iter().map(|(instr, span)| {
         let kind = match instr {
-            Instr::Add => StmtKind::Add(1),
-            Instr::Sub => StmtKind::Sub(1),
+            Instr::Add => StmtKind::Add(0, 1),
+            Instr::Sub => StmtKind::Sub(0, 1),
             Instr::Right => StmtKind::Right(1),
             Instr::Left => StmtKind::Left(1),
             Instr::Out => StmtKind::Out,
@@ -119,11 +111,15 @@ fn pass_group<'ir>(alloc: &'ir Bump, ir: Ir<'ir>) -> Ir<'ir> {
             };
 
             match (&mut old.kind, next.kind) {
-                (StmtKind::Add(a), StmtKind::Add(b)) if *a < 255 => {
+                (StmtKind::Add(offset_a, a), StmtKind::Add(offset_b, b))
+                    if *a < 255 && *offset_a == offset_b =>
+                {
                     old.span = old.span.merge(next.span);
                     *a += b;
                 }
-                (StmtKind::Sub(a), StmtKind::Sub(b)) if *a < 255 => {
+                (StmtKind::Sub(offset_a, a), StmtKind::Sub(offset_b, b))
+                    if *a < 255 && *offset_a == offset_b =>
+                {
                     old.span = old.span.merge(next.span);
                     *a += b;
                 }
@@ -163,7 +159,7 @@ fn pass_find_set_null(ir: &mut Ir<'_>) {
         } = stmt
         {
             if let [Stmt {
-                kind: StmtKind::Sub(_),
+                kind: StmtKind::Sub(0, _),
                 ..
             }] = body.stmts.as_slice()
             {
@@ -182,8 +178,8 @@ fn pass_set_n(ir: &mut Ir<'_>) {
     window_pass(ir, pass_set_n, |[a, b]| {
         if let StmtKind::SetN(before) = a.kind() {
             let new = match b.kind() {
-                StmtKind::Add(n) => StmtKind::SetN(before.wrapping_add(*n)),
-                StmtKind::Sub(n) => StmtKind::SetN(before.wrapping_sub(*n)),
+                StmtKind::Add(0, n) => StmtKind::SetN(before.wrapping_add(*n)),
+                StmtKind::Sub(0, n) => StmtKind::SetN(before.wrapping_sub(*n)),
                 _ => {
                     return WindowPassAction::None;
                 }
@@ -210,11 +206,14 @@ fn pass_cancel_left_right_add_sub(ir: &mut Ir<'_>) {
 
                 WindowPassAction::Merge(new)
             }
-            (StmtKind::Add(r), StmtKind::Sub(l)) | (StmtKind::Sub(l), StmtKind::Add(r)) => {
+            (StmtKind::Add(offset_a, r), StmtKind::Sub(offset_b, l))
+            | (StmtKind::Sub(offset_a, l), StmtKind::Add(offset_b, r))
+                if offset_a == offset_b =>
+            {
                 let new = match r.cmp(l) {
                     Ordering::Equal => return WindowPassAction::RemoveAll,
-                    Ordering::Less => StmtKind::Sub(l - r),
-                    Ordering::Greater => StmtKind::Add(r - l),
+                    Ordering::Less => StmtKind::Sub(*offset_a, l - r),
+                    Ordering::Greater => StmtKind::Add(*offset_a, r - l),
                 };
 
                 WindowPassAction::Merge(new)
@@ -229,29 +228,17 @@ fn pass_cancel_left_right_add_sub(ir: &mut Ir<'_>) {
 fn pass_add_sub_offset(ir: &mut Ir<'_>) {
     window_pass(ir, pass_add_sub_offset, |[a, b, c]| {
         match (a.kind(), b.kind(), c.kind()) {
-            (StmtKind::Right(r), StmtKind::Add(n), StmtKind::Left(l)) if r == l => {
-                WindowPassAction::Merge(StmtKind::AddOffset {
-                    offset: i32::try_from(*r).unwrap(),
-                    n: *n,
-                })
+            (StmtKind::Right(r), StmtKind::Add(0, n), StmtKind::Left(l)) if r == l => {
+                WindowPassAction::Merge(StmtKind::Add(i32::try_from(*r).unwrap(), *n))
             }
-            (StmtKind::Left(l), StmtKind::Add(n), StmtKind::Right(r)) if r == l => {
-                WindowPassAction::Merge(StmtKind::AddOffset {
-                    offset: -i32::try_from(*r).unwrap(),
-                    n: *n,
-                })
+            (StmtKind::Left(l), StmtKind::Add(0, n), StmtKind::Right(r)) if r == l => {
+                WindowPassAction::Merge(StmtKind::Add(-i32::try_from(*r).unwrap(), *n))
             }
-            (StmtKind::Right(r), StmtKind::Sub(n), StmtKind::Left(l)) if r == l => {
-                WindowPassAction::Merge(StmtKind::SubOffset {
-                    offset: i32::try_from(*r).unwrap(),
-                    n: *n,
-                })
+            (StmtKind::Right(r), StmtKind::Sub(0, n), StmtKind::Left(l)) if r == l => {
+                WindowPassAction::Merge(StmtKind::Sub(i32::try_from(*r).unwrap(), *n))
             }
-            (StmtKind::Left(l), StmtKind::Sub(n), StmtKind::Right(r)) if r == l => {
-                WindowPassAction::Merge(StmtKind::SubOffset {
-                    offset: -i32::try_from(*r).unwrap(),
-                    n: *n,
-                })
+            (StmtKind::Left(l), StmtKind::Sub(0, n), StmtKind::Right(r)) if r == l => {
+                WindowPassAction::Merge(StmtKind::Sub(-i32::try_from(*r).unwrap(), *n))
             }
             _ => WindowPassAction::None,
         }
@@ -268,17 +255,17 @@ fn pass_move_add_to(ir: &mut Ir<'_>) {
         } = stmt
         {
             if let [Stmt {
-                kind: StmtKind::Sub(1),
+                kind: StmtKind::Sub(0, 1),
                 ..
             }, Stmt {
-                kind: StmtKind::AddOffset { offset, n: 1 },
+                kind: StmtKind::Add(offset, 1),
                 ..
             }]
             | [Stmt {
-                kind: StmtKind::AddOffset { offset, n: 1 },
+                kind: StmtKind::Add(offset, 1),
                 ..
             }, Stmt {
-                kind: StmtKind::Sub(1),
+                kind: StmtKind::Sub(0, 1),
                 ..
             }] = body.stmts.as_slice()
             {

@@ -87,13 +87,13 @@ fn generate_stmts<'c>(code: &mut Code<'c>, ir: &[IrStmt<'_>]) {
 
 fn ir_to_stmt<'c>(code: &mut Code<'c>, ir_stmt: &IrStmt<'_>) {
     let stmt = match &ir_stmt.kind {
-        StmtKind::Add(n) => Stmt::Add(*n),
-        StmtKind::Sub(n) => Stmt::Sub(*n),
-        StmtKind::AddOffset { offset, n } => Stmt::AddOffset {
+        StmtKind::Add(0, n) => Stmt::Add(*n),
+        StmtKind::Sub(0, n) => Stmt::Sub(*n),
+        StmtKind::Add(offset, n) => Stmt::AddOffset {
             offset: *offset,
             n: *n,
         },
-        StmtKind::SubOffset { offset, n } => Stmt::SubOffset {
+        StmtKind::Sub(offset, n) => Stmt::SubOffset {
             offset: *offset,
             n: *n,
         },
