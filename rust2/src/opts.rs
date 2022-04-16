@@ -56,6 +56,7 @@ pub fn optimize<'ir>(alloc: &'ir Bump, instrs: &[(Instr<'_>, Span)]) -> Ir<'ir> 
     pass_find_set_null(&mut ir);
     pass_set_n(&mut ir);
     pass_cancel_left_right_add_sub(&mut ir);
+    pass_add_sub_offset(&mut ir);
     ir
 }
 
@@ -165,7 +166,7 @@ fn pass_find_set_null(ir: &mut Ir<'_>) {
 /// pass that replaces `SetN(n) Add(m)` with `SetN(n + m)`
 #[tracing::instrument]
 fn pass_set_n(ir: &mut Ir<'_>) {
-    two_window_pass(ir, pass_set_n, |a, b| {
+    window_pass(ir, pass_set_n, |[a, b]| {
         if let StmtKind::SetN(before) = a.kind() {
             let new = match b.kind() {
                 StmtKind::Add(n) => StmtKind::SetN(before.wrapping_add(*n)),
@@ -183,12 +184,12 @@ fn pass_set_n(ir: &mut Ir<'_>) {
 /// pass that replaces `Left(5) Right(3)` with `Left(2)`
 #[tracing::instrument]
 fn pass_cancel_left_right_add_sub(ir: &mut Ir<'_>) {
-    two_window_pass(ir, pass_cancel_left_right_add_sub, |a, b| {
+    window_pass(ir, pass_cancel_left_right_add_sub, |[a, b]| {
         match (a.kind(), b.kind()) {
             (StmtKind::Right(r), StmtKind::Left(l)) | (StmtKind::Left(l), StmtKind::Right(r)) => {
                 let new = match r.cmp(l) {
                     Ordering::Equal => {
-                        return WindowPassAction::RemoveBoth;
+                        return WindowPassAction::RemoveAll;
                     }
                     Ordering::Less => StmtKind::Left(l - r),
                     Ordering::Greater => StmtKind::Right(r - l),
@@ -198,7 +199,7 @@ fn pass_cancel_left_right_add_sub(ir: &mut Ir<'_>) {
             }
             (StmtKind::Add(r), StmtKind::Sub(l)) | (StmtKind::Sub(l), StmtKind::Add(r)) => {
                 let new = match r.cmp(l) {
-                    Ordering::Equal => return WindowPassAction::RemoveBoth,
+                    Ordering::Equal => return WindowPassAction::RemoveAll,
                     Ordering::Less => StmtKind::Sub(l - r),
                     Ordering::Greater => StmtKind::Add(r - l),
                 };
@@ -217,14 +218,16 @@ fn pass_add_sub_offset(ir: &mut Ir<'_>) {}
 enum WindowPassAction<'ir> {
     None,
     Merge(StmtKind<'ir>),
-    RemoveBoth,
+    RemoveAll,
 }
 
-fn two_window_pass<'ir, P, F>(ir: &mut Ir<'ir>, pass_recur: P, action: F)
+fn window_pass<'ir, P, F, const N: usize>(ir: &mut Ir<'ir>, pass_recur: P, action: F)
 where
     P: Fn(&mut Ir<'ir>),
-    F: Fn(&Stmt<'ir>, &Stmt<'ir>) -> WindowPassAction<'ir>,
+    F: Fn([&Stmt<'ir>; N]) -> WindowPassAction<'ir>,
 {
+    assert!(N > 0);
+
     let stmts = &mut ir.stmts;
     let mut i = 0;
     while i < stmts.len() {
@@ -233,23 +236,25 @@ where
             pass_recur(body);
         }
 
-        if i >= stmts.len() - 1 {
-            break; // we are the last element
+        if i >= stmts.len() - (N - 1) {
+            break; // there aren't N elements left
         }
 
         let a = &stmts[i];
         let b = &stmts[i + 1];
 
-        let merged_span = a.span.merge(b.span);
+        let mut elements = stmts[i..][..N].iter();
+        let elements = [(); N].map(|()| elements.next().unwrap());
 
-        let result = action(a, b);
+        let merged_span = elements[0].span.merge(elements.last().unwrap().span);
+        let result = action(elements);
 
         match result {
             WindowPassAction::None => {
                 // only increment i if we haven't removed anything
                 i += 1;
             }
-            WindowPassAction::RemoveBoth => {
+            WindowPassAction::RemoveAll => {
                 trace!(?a, ?b, "Removing both statements");
                 stmts.remove(i);
                 stmts.remove(i);
