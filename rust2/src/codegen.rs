@@ -27,6 +27,8 @@ use std::fmt::{Debug, Formatter};
 pub enum Stmt {
     Add(u8),
     Sub(u8),
+    AddOffset(i32, u8),
+    SubOffset(i32, u8),
     Right(u32),
     Left(u32),
     Out,
@@ -86,6 +88,8 @@ fn ir_to_stmt<'c>(code: &mut Code<'c>, ir_stmt: &IrStmt<'_>) {
     let stmt = match &ir_stmt.kind {
         StmtKind::Add(n) => Stmt::Add(*n),
         StmtKind::Sub(n) => Stmt::Sub(*n),
+        StmtKind::AddOffset(o, n) => Stmt::AddOffset(*o, *n),
+        StmtKind::SubOffset(o, n) => Stmt::SubOffset(*o, *n),
         StmtKind::Right(n) => Stmt::Right(u32::try_from(*n).unwrap()),
         StmtKind::Left(n) => Stmt::Left(u32::try_from(*n).unwrap()),
         StmtKind::Out => Stmt::Out,

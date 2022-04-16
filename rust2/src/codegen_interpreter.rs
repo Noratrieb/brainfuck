@@ -6,15 +6,17 @@ const MEM_SIZE: usize = 32_000;
 
 type Memory = [Wrapping<u8>; MEM_SIZE];
 
-// TODO maybe repr(C) to prevent field reordering?
+// `repr(C)` to make sure rustc never reorders the fields weirdly
+// maybe useless, but seems to give tiny wins
+#[repr(C)]
 struct Interpreter<'c, W, R, P> {
     code: &'c Code<'c>,
+    profile_collector: P,
     ip: usize,
     ptr: usize,
+    mem: Memory,
     stdout: W,
     stdin: R,
-    mem: Memory,
-    profile_collector: P,
 }
 
 pub fn run<W, R, P>(code: &Code<'_>, stdout: W, stdin: R, profile_collector: P)
@@ -60,6 +62,16 @@ where
                 Stmt::Sub(n) => {
                     *self.elem_mut() -= n;
                 }
+                Stmt::AddOffset(o, n) => unsafe {
+                    *self
+                        .mem
+                        .get_unchecked_mut((self.ptr as isize + (o as isize)) as usize) += n;
+                },
+                Stmt::SubOffset(o, n) => unsafe {
+                    *self
+                        .mem
+                        .get_unchecked_mut((self.ptr as isize + (o as isize)) as usize) -= n;
+                },
                 Stmt::Right(n) => {
                     self.ptr += n as usize;
                     if self.ptr >= MEM_SIZE {

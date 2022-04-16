@@ -42,6 +42,8 @@ impl Debug for Stmt<'_> {
 pub enum StmtKind<'ir> {
     Add(u8),
     Sub(u8),
+    AddOffset(i32, u8),
+    SubOffset(i32, u8),
     Right(usize),
     Left(usize),
     Loop(Ir<'ir>),
@@ -211,9 +213,27 @@ fn pass_cancel_left_right_add_sub(ir: &mut Ir<'_>) {
     })
 }
 
-/// pass that replaces `Right(9) Add(5) Left(9)` with `AddOffset(9)`
+/// pass that replaces `Right(9) Add(5) Left(9)` with `AddOffset(9, 5)`
 #[tracing::instrument]
-fn pass_add_sub_offset(ir: &mut Ir<'_>) {}
+fn pass_add_sub_offset(ir: &mut Ir<'_>) {
+    window_pass(ir, pass_add_sub_offset, |[a, b, c]| {
+        match (a.kind(), b.kind(), c.kind()) {
+            (StmtKind::Right(r), StmtKind::Add(n), StmtKind::Left(l)) if r == l => {
+                WindowPassAction::Merge(StmtKind::AddOffset(i32::try_from(*r).unwrap(), *n))
+            }
+            (StmtKind::Left(l), StmtKind::Add(n), StmtKind::Right(r)) if r == l => {
+                WindowPassAction::Merge(StmtKind::AddOffset(-i32::try_from(*r).unwrap(), *n))
+            }
+            (StmtKind::Right(r), StmtKind::Sub(n), StmtKind::Left(l)) if r == l => {
+                WindowPassAction::Merge(StmtKind::SubOffset(i32::try_from(*r).unwrap(), *n))
+            }
+            (StmtKind::Left(l), StmtKind::Sub(n), StmtKind::Right(r)) if r == l => {
+                WindowPassAction::Merge(StmtKind::SubOffset(-i32::try_from(*r).unwrap(), *n))
+            }
+            _ => WindowPassAction::None,
+        }
+    })
+}
 
 enum WindowPassAction<'ir> {
     None,
@@ -236,12 +256,9 @@ where
             pass_recur(body);
         }
 
-        if i >= stmts.len() - (N - 1) {
+        if i + N > stmts.len() {
             break; // there aren't N elements left
         }
-
-        let a = &stmts[i];
-        let b = &stmts[i + 1];
 
         let mut elements = stmts[i..][..N].iter();
         let elements = [(); N].map(|()| elements.next().unwrap());
@@ -255,13 +272,16 @@ where
                 i += 1;
             }
             WindowPassAction::RemoveAll => {
-                trace!(?a, ?b, "Removing both statements");
-                stmts.remove(i);
-                stmts.remove(i);
+                trace!(?elements, "Removing all statements");
+                for _ in 0..N {
+                    stmts.remove(i);
+                }
             }
             WindowPassAction::Merge(new) => {
-                trace!(?a, ?b, ?new, "Merging statements");
-                stmts.remove(i + 1);
+                trace!(?elements, ?new, "Merging statements");
+                for _ in 1..N {
+                    stmts.remove(i);
+                }
                 stmts[i] = Stmt::new(new, merged_span);
             }
         }
