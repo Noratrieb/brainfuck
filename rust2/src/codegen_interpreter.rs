@@ -62,16 +62,13 @@ where
                 Stmt::Sub(n) => {
                     *self.elem_mut() -= n;
                 }
-                Stmt::AddOffset(o, n) => unsafe {
-                    *self
-                        .mem
-                        .get_unchecked_mut((self.ptr as isize + (o as isize)) as usize) += n;
-                },
-                Stmt::SubOffset(o, n) => unsafe {
-                    *self
-                        .mem
-                        .get_unchecked_mut((self.ptr as isize + (o as isize)) as usize) -= n;
-                },
+                Stmt::AddOffset { offset, n } => *self.elem_mut_offset(offset) += n,
+                Stmt::SubOffset { offset, n } => *self.elem_mut_offset(offset) -= n,
+                Stmt::MoveAddTo { offset } => {
+                    let value = self.elem();
+                    *self.elem_mut() = Wrapping(0);
+                    *self.elem_mut_offset(offset) += value;
+                }
                 Stmt::Right(n) => {
                     self.ptr += n as usize;
                     if self.ptr >= MEM_SIZE {
@@ -116,15 +113,24 @@ where
             (self.profile_collector)(self.ip);
         }
     }
+
+    fn elem_mut_offset(&mut self, offset: i32) -> &mut Wrapping<u8> {
+        let ptr = self.ptr as isize;
+        let offset = offset as isize;
+        // SAFETY: `self.ptr` is never out of bounds
+        debug_assert!(self.ptr < self.mem.len());
+        unsafe { self.mem.get_unchecked_mut((ptr + offset) as usize) }
+    }
+
     fn elem_mut(&mut self) -> &mut Wrapping<u8> {
         // SAFETY: `self.ptr` is never out of bounds
-        //debug_assert!(self.ptr < self.mem.len());
+        debug_assert!(self.ptr < self.mem.len());
         unsafe { self.mem.get_unchecked_mut(self.ptr) }
     }
 
     fn elem(&self) -> u8 {
         // SAFETY: `self.ptr` is never out of bounds
-        //debug_assert!(self.ptr < self.mem.len());
+        debug_assert!(self.ptr < self.mem.len());
         unsafe { self.mem.get_unchecked(self.ptr).0 }
     }
 }

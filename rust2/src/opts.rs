@@ -40,10 +40,20 @@ impl Debug for Stmt<'_> {
 
 #[derive(Debug, Clone)]
 pub enum StmtKind<'ir> {
-    Add(u8),
-    Sub(u8),
-    AddOffset(i32, u8),
-    SubOffset(i32, u8),
+    Add(u8), // todo: we probably want to remove this
+    Sub(u8), // todo: we probably want to remove this
+    AddOffset {
+        offset: i32,
+        n: u8,
+    },
+    SubOffset {
+        offset: i32,
+        n: u8,
+    },
+    /// Sets the current cell to 0 and adds that value of the cell to another cell at `offset`
+    MoveAddTo {
+        offset: i32,
+    },
     Right(usize),
     Left(usize),
     Loop(Ir<'ir>),
@@ -59,6 +69,7 @@ pub fn optimize<'ir>(alloc: &'ir Bump, instrs: &[(Instr<'_>, Span)]) -> Ir<'ir> 
     pass_set_n(&mut ir);
     pass_cancel_left_right_add_sub(&mut ir);
     pass_add_sub_offset(&mut ir);
+    pass_move_add_to(&mut ir);
     ir
 }
 
@@ -219,20 +230,65 @@ fn pass_add_sub_offset(ir: &mut Ir<'_>) {
     window_pass(ir, pass_add_sub_offset, |[a, b, c]| {
         match (a.kind(), b.kind(), c.kind()) {
             (StmtKind::Right(r), StmtKind::Add(n), StmtKind::Left(l)) if r == l => {
-                WindowPassAction::Merge(StmtKind::AddOffset(i32::try_from(*r).unwrap(), *n))
+                WindowPassAction::Merge(StmtKind::AddOffset {
+                    offset: i32::try_from(*r).unwrap(),
+                    n: *n,
+                })
             }
             (StmtKind::Left(l), StmtKind::Add(n), StmtKind::Right(r)) if r == l => {
-                WindowPassAction::Merge(StmtKind::AddOffset(-i32::try_from(*r).unwrap(), *n))
+                WindowPassAction::Merge(StmtKind::AddOffset {
+                    offset: -i32::try_from(*r).unwrap(),
+                    n: *n,
+                })
             }
             (StmtKind::Right(r), StmtKind::Sub(n), StmtKind::Left(l)) if r == l => {
-                WindowPassAction::Merge(StmtKind::SubOffset(i32::try_from(*r).unwrap(), *n))
+                WindowPassAction::Merge(StmtKind::SubOffset {
+                    offset: i32::try_from(*r).unwrap(),
+                    n: *n,
+                })
             }
             (StmtKind::Left(l), StmtKind::Sub(n), StmtKind::Right(r)) if r == l => {
-                WindowPassAction::Merge(StmtKind::SubOffset(-i32::try_from(*r).unwrap(), *n))
+                WindowPassAction::Merge(StmtKind::SubOffset {
+                    offset: -i32::try_from(*r).unwrap(),
+                    n: *n,
+                })
             }
             _ => WindowPassAction::None,
         }
     })
+}
+
+/// pass that replaces `Loop([Sub(1) AddOffset(o, 1)])` with `MoveAddTo(o)`
+#[tracing::instrument]
+fn pass_move_add_to(ir: &mut Ir<'_>) {
+    for stmt in &mut ir.stmts {
+        if let Stmt {
+            kind: StmtKind::Loop(body),
+            span,
+        } = stmt
+        {
+            if let [Stmt {
+                kind: StmtKind::Sub(1),
+                ..
+            }, Stmt {
+                kind: StmtKind::AddOffset { offset, n: 1 },
+                ..
+            }]
+            | [Stmt {
+                kind: StmtKind::AddOffset { offset, n: 1 },
+                ..
+            }, Stmt {
+                kind: StmtKind::Sub(1),
+                ..
+            }] = body.stmts.as_slice()
+            {
+                trace!(?span, ?offset, "Replacing Statement with MoveAddTo");
+                *stmt = Stmt::new(StmtKind::MoveAddTo { offset: *offset }, *span);
+            } else {
+                pass_move_add_to(body);
+            }
+        }
+    }
 }
 
 enum WindowPassAction<'ir> {
