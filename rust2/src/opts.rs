@@ -3,6 +3,7 @@ use crate::BumpVec;
 use bumpalo::Bump;
 use std::cmp::Ordering;
 use std::fmt::{Debug, Formatter};
+use tracing::trace;
 
 #[derive(Clone)]
 pub struct Ir<'ir> {
@@ -54,7 +55,7 @@ pub fn optimize<'ir>(alloc: &'ir Bump, instrs: &[(Instr<'_>, Span)]) -> Ir<'ir> 
     let mut ir = pass_group(alloc, ir);
     pass_find_set_null(&mut ir);
     pass_set_n(&mut ir);
-    //pass_cancel_left_right_add_sub(&mut ir); this is broken lol todo
+    pass_cancel_left_right_add_sub(&mut ir);
     ir
 }
 
@@ -83,6 +84,7 @@ fn ast_to_ir<'ir>(alloc: &'ir Bump, ast: &[(Instr<'_>, Span)]) -> Ir<'ir> {
 }
 
 /// pass that replaces things like `Sub(1) Sub(1)` with `Sub(2)`
+#[tracing::instrument]
 fn pass_group<'ir>(alloc: &'ir Bump, ir: Ir<'ir>) -> Ir<'ir> {
     let new_stmts = Vec::new_in(alloc);
     let stmts = ir
@@ -138,18 +140,20 @@ fn pass_group<'ir>(alloc: &'ir Bump, ir: Ir<'ir>) -> Ir<'ir> {
 }
 
 /// pass that replaces `Loop([Sub(_)])` to `SetNull`
+#[tracing::instrument]
 fn pass_find_set_null(ir: &mut Ir<'_>) {
     for stmt in &mut ir.stmts {
         if let Stmt {
             kind: StmtKind::Loop(body),
-            ..
+            span,
         } = stmt
         {
             if let [Stmt {
                 kind: StmtKind::Sub(_),
-                span,
+                ..
             }] = body.stmts.as_slice()
             {
+                trace!(?span, "Replacing Statement with SetNull");
                 *stmt = Stmt::new(StmtKind::SetN(0), *span);
             } else {
                 pass_find_set_null(body);
@@ -159,6 +163,7 @@ fn pass_find_set_null(ir: &mut Ir<'_>) {
 }
 
 /// pass that replaces `SetN(n) Add(m)` with `SetN(n + m)`
+#[tracing::instrument]
 fn pass_set_n(ir: &mut Ir<'_>) {
     two_window_pass(ir, pass_set_n, |a, b| {
         if let StmtKind::SetN(before) = a.kind() {
@@ -176,12 +181,15 @@ fn pass_set_n(ir: &mut Ir<'_>) {
 }
 
 /// pass that replaces `Left(5) Right(3)` with `Left(2)`
+#[tracing::instrument]
 fn pass_cancel_left_right_add_sub(ir: &mut Ir<'_>) {
     two_window_pass(ir, pass_cancel_left_right_add_sub, |a, b| {
         match (a.kind(), b.kind()) {
             (StmtKind::Right(r), StmtKind::Left(l)) | (StmtKind::Left(l), StmtKind::Right(r)) => {
                 let new = match r.cmp(l) {
-                    Ordering::Equal => return WindowPassAction::RemoveBoth,
+                    Ordering::Equal => {
+                        return WindowPassAction::RemoveBoth;
+                    }
                     Ordering::Less => StmtKind::Left(l - r),
                     Ordering::Greater => StmtKind::Right(r - l),
                 };
@@ -201,6 +209,10 @@ fn pass_cancel_left_right_add_sub(ir: &mut Ir<'_>) {
         }
     })
 }
+
+/// pass that replaces `Right(9) Add(5) Left(9)` with `AddOffset(9)`
+#[tracing::instrument]
+fn pass_add_sub_offset(ir: &mut Ir<'_>) {}
 
 enum WindowPassAction<'ir> {
     None,
@@ -238,10 +250,12 @@ where
                 i += 1;
             }
             WindowPassAction::RemoveBoth => {
+                trace!(?a, ?b, "Removing both statements");
                 stmts.remove(i);
-                stmts.remove(i + 1);
+                stmts.remove(i);
             }
             WindowPassAction::Merge(new) => {
+                trace!(?a, ?b, ?new, "Merging statements");
                 stmts.remove(i + 1);
                 stmts[i] = Stmt::new(new, merged_span);
             }

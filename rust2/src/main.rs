@@ -13,6 +13,10 @@ fn main() {
 
     let args = Args::parse();
 
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::filter::EnvFilter::from_default_env())
+        .init();
+
     let src = fs::read_to_string(&args.file).unwrap_or_else(|err| {
         eprintln!("error: Failed to read file: {err}");
         process::exit(1);
