@@ -158,7 +158,18 @@ mod tests {
 
     #[test]
     fn fizzbuzz() {
-        let str = include_str!("fizzbuzz.bf");
+        let str = include_str!("../benches/fizzbuzz.bf");
+        let mut stdout = Vec::new();
+        let stdin = [];
+
+        super::run(str, &mut stdout, stdin.as_slice(), &Args::default()).unwrap();
+
+        insta::assert_debug_snapshot!(String::from_utf8(stdout));
+    }
+
+    #[test]
+    fn mandelbrot() {
+        let str = include_str!("../benches/mandelbrot.bf");
         let mut stdout = Vec::new();
         let stdin = [];
 

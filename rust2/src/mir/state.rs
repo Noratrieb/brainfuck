@@ -9,7 +9,7 @@ use std::{
 
 use bumpalo::Bump;
 
-use crate::BumpVec;
+use crate::{mir::Offset, BumpVec};
 
 /// The known state of a cell in the MIR
 #[derive(Debug, Clone)]
@@ -28,16 +28,19 @@ pub enum CellState {
 #[derive(Debug, Clone)]
 pub enum MemoryStateChange {
     /// A cell value was changed to a new state.
-    Change { offset: i32, new_state: CellState },
+    Change {
+        offset: Offset,
+        new_state: CellState,
+    },
     /// The pointer was moved. This affects the `offset` calculations from previous states.
-    Move(i32),
+    Move(Offset),
     /// Forget everything about the memory state. This currently happens after each loop, since
     /// the loop is opaque and might clobber everything.
     Forget,
     /// Load a value from memory. This is not a direct change of the memory itself, but it does
     /// change the state in that it marks the corresponding store, if any, as alive. Loads should
     /// be eliminated whenever possible, to remove as many dead stores as possible.
-    Load(Option<Store>),
+    Load { offset: Offset },
 }
 
 /// The known state of memory at a specific instance in the instruction sequence
@@ -78,8 +81,16 @@ impl<'mir> MemoryState<'mir> {
         Self(Rc::new(RefCell::new(MemoryStateInner { prev, deltas })))
     }
 
-    pub fn state_for_offset(&self, offset: i32) -> CellState {
+    pub fn state_for_offset(&self, offset: Offset) -> CellState {
         self.0.borrow().state_for_offset(offset)
+    }
+
+    pub fn has_forget_delta(&self) -> bool {
+        self.0
+            .borrow()
+            .deltas
+            .iter()
+            .any(|d| matches!(d, MemoryStateChange::Forget))
     }
 }
 
@@ -94,13 +105,13 @@ impl Debug for MemoryState<'_> {
 
 /// The known state of memory relative to the pointer
 #[derive(Debug, Clone)]
-pub struct MemoryStateInner<'mir> {
+struct MemoryStateInner<'mir> {
     prev: Option<MemoryState<'mir>>,
     deltas: BumpVec<'mir, MemoryStateChange>,
 }
 
 impl<'mir> MemoryStateInner<'mir> {
-    pub fn state_for_offset(&self, offset: i32) -> CellState {
+    fn state_for_offset(&self, offset: Offset) -> CellState {
         let mut offset = offset;
         for delta in &self.deltas {
             match delta {
@@ -128,8 +139,8 @@ impl<'mir> MemoryStateInner<'mir> {
 pub struct Store(Rc<Cell<StoreInner>>);
 
 impl Store {
-    pub fn unknown() -> Self {
-        StoreKind::Unknown.into()
+    pub fn dead() -> Self {
+        StoreKind::Dead.into()
     }
 
     pub fn id(&self) -> u64 {
@@ -138,16 +149,36 @@ impl Store {
 
     pub fn add_load(&self) {
         let old = self.inner();
-        let new_kind = match old.kind {
+        let kind = match old.kind {
             StoreKind::Unknown => StoreKind::UsedAtLeast(NonZeroU32::new(1).unwrap()),
             StoreKind::UsedExact(n) => StoreKind::UsedExact(n.checked_add(1).unwrap()),
             StoreKind::UsedAtLeast(n) => StoreKind::UsedAtLeast(n.checked_add(1).unwrap()),
             StoreKind::Dead => StoreKind::UsedExact(NonZeroU32::new(1).unwrap()),
         };
+        self.0.set(StoreInner { id: old.id, kind })
+    }
+
+    pub fn is_maybe_dead(&self) -> bool {
+        matches!(self.inner().kind, StoreKind::Dead | StoreKind::Unknown)
+    }
+
+    pub fn mark_dead(&self) {
+        let old = self.inner();
         self.0.set(StoreInner {
             id: old.id,
-            kind: new_kind,
+            kind: StoreKind::Dead,
         })
+    }
+
+    pub fn clobber(&self) {
+        let old = self.inner();
+        let kind = match old.kind {
+            StoreKind::Unknown => StoreKind::Unknown,
+            StoreKind::UsedExact(n) => StoreKind::UsedAtLeast(n),
+            StoreKind::UsedAtLeast(n) => StoreKind::UsedAtLeast(n),
+            StoreKind::Dead => StoreKind::Unknown,
+        };
+        self.0.set(StoreInner { id: old.id, kind })
     }
 
     fn inner(&self) -> StoreInner {
@@ -157,7 +188,7 @@ impl Store {
 
 impl Debug for Store {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        self.inner().fmt(f)
+        self.inner().kind.fmt(f)
     }
 }
 
@@ -169,7 +200,7 @@ struct StoreInner {
 
 #[derive(Debug, Clone, Copy)]
 enum StoreKind {
-    /// No information is known about uses of the store
+    /// No information is known about uses of the store, it has probably been clobbered
     Unknown,
     /// The exact amount of subsequent loads is known about the store, and it's this
     UsedExact(NonZeroU32),
@@ -186,13 +217,4 @@ impl From<StoreKind> for Store {
             kind,
         })))
     }
-}
-
-/// A load from memory and from which store it was acquired
-#[derive(Debug, Clone)]
-pub enum Load {
-    /// It is not known from which `Store` this was loaded
-    Unknown,
-    /// The load was acquired from this `Store`. The `Store` must either be `UsedExact` or `UsedAtLeast`
-    KnownStore(Store),
 }

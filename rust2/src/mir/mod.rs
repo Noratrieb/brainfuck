@@ -24,7 +24,7 @@ use bumpalo::Bump;
 
 use crate::{
     hir::{Hir, StmtKind as HirStmtKind},
-    mir::state::{Load, MemoryState, Store},
+    mir::state::{MemoryState, Store},
     parse::Span,
     BumpVec,
 };
@@ -50,20 +50,26 @@ impl Debug for Stmt<'_> {
     }
 }
 
+type Offset = i32;
+
 #[derive(Debug, Clone)]
 enum StmtKind<'mir> {
     /// Add or sub, the value has the valid range -255..=255
-    AddSub(i32, i16, Store),
+    AddSub {
+        offset: Offset,
+        n: i16,
+        store: Store,
+    },
     /// Sets the current cell to 0 and adds that value of the cell to another cell at `offset`
     MoveAddTo {
-        offset: i32,
+        offset: Offset,
         store_set_null: Store,
         store_move: Store,
     },
     /// Left or Right pointer move (`<>`)
-    PointerMove(i32),
-    Loop(Mir<'mir>, Load),
-    Out(Load),
+    PointerMove(Offset),
+    Loop(Mir<'mir>),
+    Out,
     In(Store),
     SetN(u8, Store),
 }
@@ -80,21 +86,27 @@ fn hir_to_mir<'mir>(alloc: &'mir Bump, hir: &Hir<'_>) -> Mir<'mir> {
     let mut stmts = Vec::new_in(alloc);
     let iter = hir.stmts.iter().map(|hir_stmt| {
         let kind = match *hir_stmt.kind() {
-            HirStmtKind::Add(offset, n) => StmtKind::AddSub(offset, i16::from(n), Store::unknown()),
-            HirStmtKind::Sub(offset, n) => {
-                StmtKind::AddSub(offset, -i16::from(n), Store::unknown())
-            }
+            HirStmtKind::Add(offset, n) => StmtKind::AddSub {
+                offset,
+                n: i16::from(n),
+                store: Store::dead(),
+            },
+            HirStmtKind::Sub(offset, n) => StmtKind::AddSub {
+                offset,
+                n: -i16::from(n),
+                store: Store::dead(),
+            },
             HirStmtKind::MoveAddTo { offset } => StmtKind::MoveAddTo {
                 offset,
-                store_set_null: Store::unknown(),
-                store_move: Store::unknown(),
+                store_set_null: Store::dead(),
+                store_move: Store::dead(),
             },
             HirStmtKind::Right(n) => StmtKind::PointerMove(i32::try_from(n).unwrap()),
             HirStmtKind::Left(n) => StmtKind::PointerMove(-i32::try_from(n).unwrap()),
-            HirStmtKind::Loop(ref body) => StmtKind::Loop(hir_to_mir(alloc, body), Load::Unknown),
-            HirStmtKind::Out => StmtKind::Out(Load::Unknown),
-            HirStmtKind::In => StmtKind::In(Store::unknown()),
-            HirStmtKind::SetN(n) => StmtKind::SetN(n, Store::unknown()),
+            HirStmtKind::Loop(ref body) => StmtKind::Loop(hir_to_mir(alloc, body)),
+            HirStmtKind::Out => StmtKind::Out,
+            HirStmtKind::In => StmtKind::In(Store::dead()),
+            HirStmtKind::SetN(n) => StmtKind::SetN(n, Store::dead()),
         };
         Stmt {
             kind,

@@ -20,6 +20,9 @@ insta = "1.14.0"
 [profile.release]
 debug = true
 
+[profile.dev]
+opt-level = 3
+
 [[bench]]
 name = "opts"
 harness = false
