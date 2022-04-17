@@ -1,4 +1,5 @@
 #![feature(allocator_api, let_else)]
+#![feature(nonzero_ops)]
 #![deny(unsafe_op_in_unsafe_fn)]
 #![warn(rust_2018_idioms)]
 

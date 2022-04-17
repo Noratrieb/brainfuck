@@ -1,4 +1,18 @@
 //! an experimental MIR (mid-level-ir)
+//!
+//! The MIR consists of two parts. First, there are instructions (`Stmt`). These instructions
+//! can be seen as an extended version of the default brainfuck instruction set `+-<>,.[]`.
+//! These instructions modify the classic tape. What MIR does is that it attaches an abstract
+//! `MemoryState` to *each* statement. This state contains all facts known about the state of the
+//! tape at the point of execution of the statement.
+//!
+//! For example, for the code `++.`, the `MemoryState` for the `.` instruction contains a single
+//! fact: "The current cell was written to, by the instruction before and with the value 2". MIR
+//! tracks as much of the reads/writes to determine their dependencies and eliminate as many
+//! of them as possible.
+//!
+//! Note that MIR is always pessimized, so if it can't determine for sure that something is true,
+//! it will not act on it.
 #![allow(dead_code)]
 
 mod opts;
@@ -10,7 +24,7 @@ use bumpalo::Bump;
 
 use crate::{
     hir::{Hir, StmtKind as HirStmtKind},
-    mir::state::{MemoryState, Store, StoreInner},
+    mir::state::{Load, MemoryState, Store},
     parse::Span,
     BumpVec,
 };
@@ -48,8 +62,8 @@ enum StmtKind<'mir> {
     },
     /// Left or Right pointer move (`<>`)
     PointerMove(i32),
-    Loop(Mir<'mir>),
-    Out,
+    Loop(Mir<'mir>, Load),
+    Out(Load),
     In(Store),
     SetN(u8, Store),
 }
@@ -77,9 +91,9 @@ fn hir_to_mir<'mir>(alloc: &'mir Bump, hir: &Hir<'_>) -> Mir<'mir> {
             },
             HirStmtKind::Right(n) => StmtKind::PointerMove(i32::try_from(n).unwrap()),
             HirStmtKind::Left(n) => StmtKind::PointerMove(-i32::try_from(n).unwrap()),
-            HirStmtKind::Loop(ref body) => StmtKind::Loop(hir_to_mir(alloc, body)),
-            HirStmtKind::Out => StmtKind::Out,
-            HirStmtKind::In => StmtKind::In(StoreInner::Unknown.into()),
+            HirStmtKind::Loop(ref body) => StmtKind::Loop(hir_to_mir(alloc, body), Load::Unknown),
+            HirStmtKind::Out => StmtKind::Out(Load::Unknown),
+            HirStmtKind::In => StmtKind::In(Store::unknown()),
             HirStmtKind::SetN(n) => StmtKind::SetN(n, Store::unknown()),
         };
         Stmt {

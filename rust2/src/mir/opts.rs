@@ -9,18 +9,18 @@ use crate::mir::{
 /// this pass fills out as much state info for all statements as possible
 #[tracing::instrument(skip(alloc, mir))]
 pub fn passes<'mir>(alloc: &'mir Bump, mir: &mut Mir<'mir>) {
-    pass_get_state_info(alloc, mir);
+    pass_fill_state_info(alloc, mir);
     pass_const_propagation(mir);
 }
 /// this pass fills out as much state info for all statements as possible
 #[tracing::instrument(skip(alloc, mir))]
-pub fn pass_get_state_info<'mir>(alloc: &'mir Bump, mir: &mut Mir<'mir>) {
+pub fn pass_fill_state_info<'mir>(alloc: &'mir Bump, mir: &mut Mir<'mir>) {
     let empty_state = MemoryState::empty(alloc);
-    pass_get_state_info_inner(alloc, mir, empty_state);
+    pass_fill_state_info_inner(alloc, mir, empty_state);
 }
 
 #[tracing::instrument(skip(alloc, mir))]
-fn pass_get_state_info_inner<'mir>(
+fn pass_fill_state_info_inner<'mir>(
     alloc: &'mir Bump,
     mir: &mut Mir<'mir>,
     mut outer: MemoryState<'mir>,
@@ -65,9 +65,9 @@ fn pass_get_state_info_inner<'mir>(
             StmtKind::PointerMove(n) => {
                 MemoryState::single(alloc, outer, MemoryStateChange::Move(*n))
             }
-            StmtKind::Loop(body) => {
+            StmtKind::Loop(body, _) => {
                 // TODO: we can get a lot smarter here and get huge benefits; we don't yet
-                pass_get_state_info_inner(alloc, body, MemoryState::empty(alloc));
+                pass_fill_state_info_inner(alloc, body, MemoryState::empty(alloc));
                 MemoryState::double(
                     alloc,
                     outer,
@@ -80,7 +80,7 @@ fn pass_get_state_info_inner<'mir>(
                     },
                 )
             }
-            StmtKind::Out => outer,
+            StmtKind::Out(_) => outer,
             StmtKind::In(store) => MemoryState::single(
                 alloc,
                 outer,
@@ -111,16 +111,16 @@ fn pass_const_propagation(mir: &mut Mir<'_>) {
 fn pass_const_propagation_inner(mir: &mut Mir<'_>) {
     for stmt in &mut mir.stmts {
         match &mut stmt.kind {
-            StmtKind::Out => {
+            StmtKind::Out(_) => {
                 let state = stmt.state.state_for_offset(0);
                 info!(?state, "We got the state of the output 😳😳😳");
                 // we could now insert a `SetN` before the `Out`, to mark the previous store
                 // as dead.
             }
-            StmtKind::Loop(body) => {
+            StmtKind::Loop(body, _) => {
                 let state = stmt.state.state_for_offset(0);
                 info!(?state, "We got the state of the output 😳😳😳");
-                // we could now insert a `SetN` before the `Out`, to mark the previous store
+                // we could now insert a `SetN` before the `Loop`, to mark the previous store
                 // as dead.
                 pass_const_propagation_inner(body);
             }
