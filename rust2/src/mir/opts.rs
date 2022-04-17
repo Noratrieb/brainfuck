@@ -22,7 +22,8 @@ pub fn pass_fill_state_info<'mir>(alloc: &'mir Bump, mir: &mut Mir<'mir>) {
     pass_fill_state_info_inner(alloc, mir, empty_state);
 }
 
-#[tracing::instrument(skip(alloc, mir))]
+// note: this whole thing is unsound because it doesn't consider that stores inside a loop
+// could be loaded from after the loop
 fn pass_fill_state_info_inner<'mir>(
     alloc: &'mir Bump,
     mir: &mut Mir<'mir>,
@@ -113,7 +114,8 @@ fn pass_dead_store_elimination(mir: &mut Mir<'_>) {
     pass_dead_store_elimination_mark_dead_stores(mir)
 }
 
-fn pass_dead_store_elimination_mark_dead_stores(mir: &mut Mir<'_>) {
+#[tracing::instrument(skip(mir))]
+fn pass_dead_store_elimination_mark_dead_stores(mir: &Mir<'_>) {
     fn mark_store(
         potential_dead_stores: &mut HashMap<Offset, Store>,
         offset: Offset,
@@ -158,9 +160,17 @@ fn pass_dead_store_elimination_mark_dead_stores(mir: &mut Mir<'_>) {
                 );
             }
             StmtKind::PointerMove(offset) => {
-                current_offset -= offset; // ???
+                current_offset += offset; // ???
             }
-            StmtKind::Loop(_) | StmtKind::Out => {
+            StmtKind::Loop(body) => {
+                let store = potential_dead_stores.get(&current_offset);
+                if let Some(store) = store {
+                    store.add_load();
+                }
+
+                pass_dead_store_elimination_mark_dead_stores(body);
+            }
+            StmtKind::Out => {
                 let store = potential_dead_stores.get(&current_offset);
                 if let Some(store) = store {
                     store.add_load();
@@ -173,11 +183,9 @@ fn pass_dead_store_elimination_mark_dead_stores(mir: &mut Mir<'_>) {
 
         if stmt.state.has_forget_delta() {
             // they might all have loads now
-            for store in potential_dead_stores.values_mut() {
-                // TODO STOP: WE MUTATE THE STATE HERE!!! ALL COOL DEAD STORES WILL BE CLOBBERED
-                store.clobber();
-            }
+            potential_dead_stores.values().for_each(Store::clobber);
         }
+        info!(?potential_dead_stores, ?current_offset, "stores");
     }
 }
 
@@ -191,12 +199,12 @@ fn pass_const_propagation_inner(mir: &mut Mir<'_>) {
     for stmt in &mut mir.stmts {
         match &mut stmt.kind {
             StmtKind::Out => {
-                let state = stmt.state.state_for_offset(0);
+                let _state = stmt.state.state_for_offset(0);
                 // we could now insert a `SetN` before the `Out`, to mark the previous store
                 // as dead.
             }
             StmtKind::Loop(body) => {
-                let state = stmt.state.state_for_offset(0);
+                let _state = stmt.state.state_for_offset(0);
                 // we could now insert a `SetN` before the `Loop`, to mark the previous store
                 // as dead.
                 pass_const_propagation_inner(body);
