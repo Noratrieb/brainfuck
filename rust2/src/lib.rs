@@ -23,12 +23,17 @@ pub mod parse;
 #[derive(clap::Parser, Default)]
 #[clap(author, about)]
 pub struct Args {
+	/// Print colored source code depending on how often it was run.
+	/// Makes the interpreter ~30% slower.
     #[clap(short, long)]
     pub profile: bool,
+    /// Dump the IR info (ast, hir, mir, lir)
     #[clap(long)]
     pub dump: Option<DumpKind>,
+    /// Use experimental mid-level IR
     #[clap(long)]
     pub mir: bool,
+    /// The file to run
     pub file: PathBuf,
 }
 
