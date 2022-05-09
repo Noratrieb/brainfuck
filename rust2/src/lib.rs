@@ -124,7 +124,7 @@ where
             }
 
             let max = src_profile_count.iter().max().copied().unwrap_or(0);
-            println!("---------------- Profile ----------------");
+            println!("\n\n---------------- Profile ----------------");
             for (char, value) in src.bytes().zip(src_profile_count) {
                 print!("{}", color_by_profile(char as char, value, max));
             }
