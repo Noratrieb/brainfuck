@@ -1,5 +1,8 @@
 import fs from 'fs/promises';
 
+const RED = '\x1B[1;31m';
+const RESET = '\x1B[1;0m';
+
 function lex(string) {
   const tokens = [];
 
@@ -83,9 +86,9 @@ function reportError(source, message, span) {
   const linePrefix = `${lineNumber} | `;
   const lineSpan = span - lastNewlineIdx;
 
-  console.error(`error: ${message}`);
+  console.error(`${RED}error: ${message}${RESET}`);
   console.error(`${linePrefix}${line}`);
-  console.error(`${' '.repeat(linePrefix.length)}${'-'.repeat(lineSpan)}^`);
+  console.error(`${' '.repeat(linePrefix.length + lineSpan)}${RED}^${RESET}`);
 }
 
 const file = process.argv[2];
