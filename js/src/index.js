@@ -11,7 +11,7 @@ function lex(string) {
     if (['+', '-', '>', '<', '.', ',', '[', ']'].includes(char)) {
       tokens.push({
         char,
-        span: i
+        span: i,
       });
     }
   }
@@ -29,13 +29,13 @@ function Parser(tokens) {
   this.position = 0;
 }
 
-Parser.prototype.next = function() {
+Parser.prototype.next = function () {
   const token = this.tokens[this.position];
   this.position++;
   return token;
 };
 
-Parser.prototype.parse = function(isLoop) {
+Parser.prototype.parse = function (isLoop) {
   const body = [];
   let nextToken;
   while ((nextToken = this.next()) !== undefined) {
