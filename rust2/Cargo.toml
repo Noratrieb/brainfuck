@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 bumpalo = { version = "3.9.1", features = ["allocator_api"] }
 clap = { version = "3.1.9", features = ["derive"] }
+dbg-pls = { version = "0.3.2", features = ["colors", "derive"] }
 owo-colors = "3.3.0"
 rand = "0.8.5"
 tracing = "0.1.34"

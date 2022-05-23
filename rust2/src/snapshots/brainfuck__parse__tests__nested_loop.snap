@@ -1,95 +1,61 @@
 ---
 source: src/parse.rs
-assertion_line: 164
 expression: instrs
 ---
 Ok(
     [
         (
             Add,
-            Span {
-                start: 0,
-                len: 1,
-            },
+            0..1,
         ),
         (
             Loop(
                 [
                     (
                         Sub,
-                        Span {
-                            start: 2,
-                            len: 1,
-                        },
+                        2..3,
                     ),
                     (
                         Loop(
                             [
                                 (
                                     Sub,
-                                    Span {
-                                        start: 4,
-                                        len: 1,
-                                    },
+                                    4..5,
                                 ),
                                 (
                                     Loop(
                                         [
                                             (
                                                 Sub,
-                                                Span {
-                                                    start: 6,
-                                                    len: 1,
-                                                },
+                                                6..7,
                                             ),
                                         ],
                                     ),
-                                    Span {
-                                        start: 5,
-                                        len: 3,
-                                    },
+                                    5..8,
                                 ),
                             ],
                         ),
-                        Span {
-                            start: 3,
-                            len: 6,
-                        },
+                        3..9,
                     ),
                     (
                         Add,
-                        Span {
-                            start: 9,
-                            len: 1,
-                        },
+                        9..10,
                     ),
                     (
                         Right,
-                        Span {
-                            start: 10,
-                            len: 1,
-                        },
+                        10..11,
                     ),
                     (
                         Right,
-                        Span {
-                            start: 11,
-                            len: 1,
-                        },
+                        11..12,
                     ),
                     (
                         Right,
-                        Span {
-                            start: 12,
-                            len: 1,
-                        },
+                        12..13,
                     ),
                 ],
             ),
-            Span {
-                start: 1,
-                len: 13,
-            },
+            1..14,
         ),
     ],
 )

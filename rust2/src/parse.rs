@@ -1,8 +1,11 @@
-use std::{cmp, fmt::Debug};
+use std::{
+    cmp,
+    fmt::{Debug, Formatter},
+};
 
 use bumpalo::Bump;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, Default)]
 pub struct Span {
     start: u32,
     len: u32,
@@ -59,6 +62,12 @@ impl Span {
     /// ..end
     pub fn end(&self) -> usize {
         self.start() + self.len()
+    }
+}
+
+impl Debug for Span {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Debug::fmt(&(self.start..(self.start + self.len)), f)
     }
 }
 

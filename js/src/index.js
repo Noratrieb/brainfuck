@@ -1,4 +1,4 @@
-import fs from 'fs/promises';
+import fs from 'fs';
 
 const RED = '\x1B[1;31m';
 const RESET = '\x1B[1;0m';
@@ -98,7 +98,7 @@ if (!file) {
   process.exit(1);
 }
 
-const source = await fs.readFile(file, 'utf-8');
+const source = fs.readFileSync(file, 'utf-8');
 const tokens = lex(source);
 
 const parser = new Parser(tokens);

@@ -23,8 +23,8 @@ pub mod parse;
 #[derive(clap::Parser, Default)]
 #[clap(author, about)]
 pub struct Args {
-	/// Print colored source code depending on how often it was run.
-	/// Makes the interpreter ~30% slower.
+    /// Print colored source code depending on how often it was run.
+    /// Makes the interpreter ~30% slower.
     #[clap(short, long)]
     pub profile: bool,
     /// Dump the IR info (ast, hir, mir, lir)
@@ -85,7 +85,7 @@ where
     let optimized_hir = hir::optimized_hir(&hir_alloc, &parsed);
 
     if let Some(DumpKind::Hir) = config.dump {
-        println!("{optimized_hir:#?}");
+        println!("{}", dbg_pls::color(&optimized_hir));
         return Ok(());
     }
 

@@ -1,6 +1,7 @@
 use std::fmt::{Debug, Formatter};
 
 use bumpalo::Bump;
+use dbg_pls::DebugPls;
 
 use crate::{
     parse::{Ast, Instr, Span},
@@ -16,7 +17,13 @@ pub struct Hir<'hir> {
 
 impl Debug for Hir<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        self.stmts.fmt(f)
+        Debug::fmt(&self.stmts, f)
+    }
+}
+
+impl DebugPls for Hir<'_> {
+    fn fmt(&self, f: dbg_pls::Formatter<'_>) {
+        DebugPls::fmt(&self.stmts.iter().collect::<Vec<_>>(), f)
     }
 }
 
@@ -38,11 +45,17 @@ impl<'hir> Stmt<'hir> {
 
 impl Debug for Stmt<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        self.kind.fmt(f)
+        Debug::fmt(&self.kind, f)
     }
 }
 
-#[derive(Debug, Clone)]
+impl DebugPls for Stmt<'_> {
+    fn fmt(&self, f: dbg_pls::Formatter<'_>) {
+        DebugPls::fmt(&self.kind, f)
+    }
+}
+
+#[derive(Debug, Clone, DebugPls)]
 pub enum StmtKind<'hir> {
     Add(i32, u8),
     Sub(i32, u8),
